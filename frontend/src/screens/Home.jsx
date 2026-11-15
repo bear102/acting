@@ -22,7 +22,11 @@ export default function Home({ onStart, onHall }) {
       <main className="lp-hero">
         <h1 className="lp-title">
           <span className="lp-title-small">The Trials of</span>
-          <span className="lp-title-big">Odysseus</span>
+          <span className="lp-title-big-wrap">
+            <span className="lp-title-big">Odysseus</span>
+            {/* brighter copy that fades in and out: an opacity-only gleam (no repaint) */}
+            <span className="lp-title-gleam" aria-hidden="true">Odysseus</span>
+          </span>
         </h1>
         <p className="lp-hook">Act the epic. Face the gods.</p>
 
