@@ -33,6 +33,8 @@ function route(pts) {
 
 export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
   const pts = waypoints(scenes.length)
+  // Many trials: shrink the islands so neighbours never overlap (spacing 680 / (n - 1) units)
+  const k = Math.min(1, 680 / Math.max(1, scenes.length - 1) / 92)
   const ithaca = [935, 112]
   const last = pts[pts.length - 1]
 
@@ -80,7 +82,7 @@ export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
           const on = hovered === s.id
           return (
             <g key={s.id} className={`sx-wp ${on ? 'on' : ''} ${s.video ? 'film' : ''} ${i === 0 && hovered === null ? 'start' : ''}`}
-              transform={`translate(${x} ${y})`} role="button" tabIndex={0}
+              transform={`translate(${x} ${y}) scale(${k})`} role="button" tabIndex={0}
               aria-label={`Trial ${NUMERALS[i]}: ${s.title}`}
               onClick={() => onPick(s.id)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(s.id) } }}

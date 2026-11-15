@@ -36,11 +36,22 @@ export default function SceneSelect({ onPick, onBack }) {
   const [hovered, setHovered] = useState(null)
   useEffect(() => { api.scenes().then(setScenes).catch((e) => setError(String(e))) }, [])
 
-  // Film scenes first, then the scrolls; numerals follow that order everywhere.
-  const ordered = scenes ? [...scenes.filter((s) => s.video), ...scenes.filter((s) => !s.video)] : []
+  // Film scenes first (hard modes last), then the scrolls; numerals follow that order everywhere.
+  const hard = (s) => (s.difficulty === 'Hard' ? 1 : 0)
+  const films = scenes ? scenes.filter((s) => s.video).sort((a, b) => hard(a) - hard(b)) : []
+  const scrolls = scenes ? scenes.filter((s) => !s.video) : []
+  const ordered = [...films, ...scrolls]
+  const many = ordered.length > 7
+  const card = (s) => {
+    const i = ordered.indexOf(s)
+    return (
+      <SceneCard key={s.id} s={s} n={NUMERALS[i]} emblem={SCENE_EMBLEMS[s.id] || EMBLEMS[i % EMBLEMS.length]}
+        on={hovered === s.id} start={i === 0 && hovered === null} onHover={setHovered} onPick={onPick} />
+    )
+  }
 
   return (
-    <div className="panel sx">
+    <div className={`panel sx ${many ? 'sx-many' : ''}`}>
       <div className="sx-top">
         <button className="link sx-back" onClick={onBack}>← Back</button>
         <header className="sx-head">
@@ -56,12 +67,24 @@ export default function SceneSelect({ onPick, onBack }) {
       {ordered.length > 0 && (
         <>
           <VoyageMap scenes={ordered} hovered={hovered} onHover={setHovered} onPick={onPick} />
-          <div className="sx-grid">
-            {ordered.map((s, i) => (
-              <SceneCard key={s.id} s={s} n={NUMERALS[i]} emblem={SCENE_EMBLEMS[s.id] || EMBLEMS[i % EMBLEMS.length]}
-                on={hovered === s.id} start={i === 0 && hovered === null} onHover={setHovered} onPick={onPick} />
-            ))}
-          </div>
+          {many ? (
+            <>
+              {films.length > 0 && (
+                <section className="sx-group" aria-label="From the film">
+                  <h3 className="sx-group-title">From the film <span>{films.length}</span></h3>
+                  <div className="sx-grid">{films.map(card)}</div>
+                </section>
+              )}
+              {scrolls.length > 0 && (
+                <section className="sx-group" aria-label="From the ancient scrolls">
+                  <h3 className="sx-group-title">From the ancient scrolls <span>{scrolls.length}</span></h3>
+                  <div className="sx-grid">{scrolls.map(card)}</div>
+                </section>
+              )}
+            </>
+          ) : (
+            <div className="sx-grid">{ordered.map(card)}</div>
+          )}
         </>
       )}
     </div>

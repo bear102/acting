@@ -1,0 +1,27 @@
+[
+ {
+  "start": 0.0,
+  "end": 3.23,
+  "character": "penelope"
+ },
+ {
+  "start": 3.23,
+  "end": 5.63,
+  "character": "telemachus"
+ },
+ {
+  "start": 5.63,
+  "end": 12.7,
+  "character": "penelope"
+ },
+ {
+  "start": 12.7,
+  "end": 15.83,
+  "character": "telemachus"
+ },
+ {
+  "start": 15.83,
+  "end": 19.9,
+  "character": "penelope"
+ }
+]

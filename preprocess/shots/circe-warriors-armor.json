@@ -1,0 +1,27 @@
+[
+ {
+  "start": 0.0,
+  "end": 1.1,
+  "character": "odysseus"
+ },
+ {
+  "start": 1.1,
+  "end": 8.5,
+  "character": "circe"
+ },
+ {
+  "start": 8.5,
+  "end": 11.17,
+  "character": "odysseus"
+ },
+ {
+  "start": 11.17,
+  "end": 16.83,
+  "character": "circe"
+ },
+ {
+  "start": 16.83,
+  "end": 20.5,
+  "character": "odysseus"
+ }
+]

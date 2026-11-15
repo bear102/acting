@@ -1,0 +1,47 @@
+[
+ {
+  "start": 0.0,
+  "end": 3.27,
+  "character": "circe"
+ },
+ {
+  "start": 3.27,
+  "end": 4.6,
+  "character": "odysseus"
+ },
+ {
+  "start": 4.6,
+  "end": 9.13,
+  "character": "circe"
+ },
+ {
+  "start": 9.13,
+  "end": 10.8,
+  "character": "odysseus"
+ },
+ {
+  "start": 10.8,
+  "end": 12.87,
+  "character": "circe"
+ },
+ {
+  "start": 12.87,
+  "end": 14.07,
+  "character": "odysseus"
+ },
+ {
+  "start": 14.07,
+  "end": 16.07,
+  "character": "circe"
+ },
+ {
+  "start": 16.07,
+  "end": 17.27,
+  "character": "odysseus"
+ },
+ {
+  "start": 17.27,
+  "end": 23.0,
+  "character": "circe"
+ }
+]

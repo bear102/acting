@@ -1,0 +1,122 @@
+[
+ {
+  "start": 0.0,
+  "end": 1.54,
+  "character": null
+ },
+ {
+  "start": 1.54,
+  "end": 2.8,
+  "character": null
+ },
+ {
+  "start": 2.8,
+  "end": 4.07,
+  "character": "odysseus"
+ },
+ {
+  "start": 4.07,
+  "end": 8.87,
+  "character": null
+ },
+ {
+  "start": 8.87,
+  "end": 9.94,
+  "character": "odysseus"
+ },
+ {
+  "start": 9.94,
+  "end": 12.67,
+  "character": "circe"
+ },
+ {
+  "start": 12.67,
+  "end": 13.6,
+  "character": "odysseus"
+ },
+ {
+  "start": 13.6,
+  "end": 15.54,
+  "character": "circe"
+ },
+ {
+  "start": 15.54,
+  "end": 16.4,
+  "character": "odysseus"
+ },
+ {
+  "start": 16.4,
+  "end": 19.0,
+  "character": "circe"
+ },
+ {
+  "start": 19.0,
+  "end": 22.47,
+  "character": "odysseus"
+ },
+ {
+  "start": 22.47,
+  "end": 29.87,
+  "character": "circe"
+ },
+ {
+  "start": 29.87,
+  "end": 32.54,
+  "character": "odysseus"
+ },
+ {
+  "start": 32.54,
+  "end": 38.2,
+  "character": "circe"
+ },
+ {
+  "start": 38.2,
+  "end": 41.87,
+  "character": "odysseus"
+ },
+ {
+  "start": 41.87,
+  "end": 45.14,
+  "character": "circe"
+ },
+ {
+  "start": 45.14,
+  "end": 46.47,
+  "character": "odysseus"
+ },
+ {
+  "start": 46.47,
+  "end": 51.0,
+  "character": "circe"
+ },
+ {
+  "start": 51.0,
+  "end": 52.67,
+  "character": "odysseus"
+ },
+ {
+  "start": 52.67,
+  "end": 54.74,
+  "character": "circe"
+ },
+ {
+  "start": 54.74,
+  "end": 55.94,
+  "character": "odysseus"
+ },
+ {
+  "start": 55.94,
+  "end": 57.94,
+  "character": "circe"
+ },
+ {
+  "start": 57.94,
+  "end": 59.14,
+  "character": "odysseus"
+ },
+ {
+  "start": 59.14,
+  "end": 64.87,
+  "character": "circe"
+ }
+]

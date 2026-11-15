@@ -1,0 +1,87 @@
+[
+ {
+  "start": 0.0,
+  "end": 2.07,
+  "character": "penelope"
+ },
+ {
+  "start": 2.07,
+  "end": 4.87,
+  "character": "telemachus"
+ },
+ {
+  "start": 4.87,
+  "end": 7.4,
+  "character": "penelope"
+ },
+ {
+  "start": 7.4,
+  "end": 11.93,
+  "character": "telemachus"
+ },
+ {
+  "start": 11.93,
+  "end": 18.67,
+  "character": "penelope"
+ },
+ {
+  "start": 18.67,
+  "end": 20.73,
+  "character": "telemachus"
+ },
+ {
+  "start": 20.73,
+  "end": 26.73,
+  "character": "penelope"
+ },
+ {
+  "start": 26.73,
+  "end": 29.13,
+  "character": "telemachus"
+ },
+ {
+  "start": 29.13,
+  "end": 36.2,
+  "character": "penelope"
+ },
+ {
+  "start": 36.2,
+  "end": 39.33,
+  "character": "telemachus"
+ },
+ {
+  "start": 39.33,
+  "end": 45.07,
+  "character": "penelope"
+ },
+ {
+  "start": 45.07,
+  "end": 50.93,
+  "character": "telemachus"
+ },
+ {
+  "start": 50.93,
+  "end": 55.6,
+  "character": "penelope"
+ },
+ {
+  "start": 55.6,
+  "end": 56.93,
+  "character": "telemachus"
+ },
+ {
+  "start": 56.93,
+  "end": 63.73,
+  "character": "penelope"
+ },
+ {
+  "start": 63.73,
+  "end": 65.6,
+  "character": "telemachus"
+ },
+ {
+  "start": 65.6,
+  "end": 67.27,
+  "character": "penelope"
+ }
+]
