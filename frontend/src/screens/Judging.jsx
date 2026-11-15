@@ -1,3 +1,4 @@
+import { loop, play, stopLoop } from '../audio/sfx.js'
 import { useEffect, useState } from 'react'
 import { godArt } from '../ui/rankArt.js'
 import '../theme/judging.css'
@@ -28,6 +29,9 @@ export default function Judging({ snaps = [] }) {
     return () => clearInterval(t)
   }, [])
   const zeus = i >= COUNCIL.length
+  // Tension drumroll while the gods deliberate; thunder when Zeus takes over
+  useEffect(() => { loop('music', 'judging'); return () => stopLoop('music') }, [])
+  useEffect(() => { if (zeus) play('thunder') }, [zeus])
   // clouds part a little more as each god finishes
   const part = zeus ? 'oj-part-3' : i >= 3 ? 'oj-part-2' : i >= 1 ? 'oj-part-1' : ''
 
