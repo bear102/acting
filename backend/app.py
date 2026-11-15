@@ -182,11 +182,10 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     }
     run = {k: result[k] for k in ("scene_id", "scene_title", "team_name", "team_size", "score", "kleos", "rank")} | {
         "epithet": words_said.get("epithet"), "judges": {k: v["score"] for k, v in judges.items()}}
-    zeus_audio, saved = await asyncio.gather(oracle.speak(words_said["zeus"]),
-                                             run_in_threadpool(store.save_run, run), return_exceptions=True)
-    if isinstance(saved, BaseException):
-        log.warning("Could not save run: %s", saved)
-    result["zeus_audio"] = None if isinstance(zeus_audio, BaseException) else zeus_audio
+    try:
+        await run_in_threadpool(store.save_run, run)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Could not save run: %s", e)
     # --- save the take for calibration (tools/replay_takes.py); background thread, never fails a round
     try:
         import threading
