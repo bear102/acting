@@ -86,7 +86,7 @@ export default memo(function FilmPanel({ src, getTime, getPhase, getPark }) {
       }
     }, 100)
     return () => clearInterval(iv)
-  }, [getTime, getPhase])
+  }, [getTime, getPhase, getPark])
 
   const toggle = () => {
     const on = !hear
