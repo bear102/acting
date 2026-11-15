@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { Helmet, Lyre, Owl, Rose, Ship } from '../ui/Art.jsx'
-import { IonicColumn, Pediment, Rosette, SeaVoyage } from '../theme/Temple.jsx'
+import { Rosette } from '../theme/Temple.jsx'
+import LandingScene from '../landing/LandingScene.jsx'
+import { ActIcon, JudgedIcon, WatchIcon } from '../landing/StepIcons.jsx'
 import '../theme/home.css'
 
-// Odyssey I.1, Samuel Butler's translation (public domain)
-const PROEM = 'Tell me, O Muse, of that ingenious hero who travelled far and wide after he had sacked the famous town of Troy.'
-
-const GODS = [
-  [Owl, 'Athena', 'Words'],
-  [Lyre, 'Apollo', 'Voice'],
-  [Helmet, 'Ares', 'Movement'],
-  [Rose, 'Aphrodite', 'Emotion'],
+const STEPS = [
+  [WatchIcon, 'Watch'],
+  [ActIcon, 'Act'],
+  [JudgedIcon, 'Be judged'],
 ]
 
 export default function Home({ onStart, onHall }) {
@@ -19,73 +16,60 @@ export default function Home({ onStart, onHall }) {
   useEffect(() => { api.health().then(setHealth).catch(() => setHealth({ ok: false })) }, [])
 
   return (
-    <div className="oh">
-      <header className="oh-temple">
-        <Pediment className="oh-pediment" />
-        <div className="oh-portico">
-          <IonicColumn className="oh-column" />
-          <div className="oh-title-block">
-            <p className="eyebrow">HackUTA ’26 · An acting trial before the gods</p>
-            <h1 className="title oh-title">
-              <span className="title-small">The</span>
-              Trials of<br />Odysseus
-            </h1>
-          </div>
-          <IonicColumn className="oh-column" />
+    <div className="lp">
+      <LandingScene />
+
+      <main className="lp-hero">
+        <h1 className="lp-title">
+          <span className="lp-title-small">The Trials of</span>
+          <span className="lp-title-big">Odysseus</span>
+        </h1>
+        <p className="lp-hook">Act the epic. Face the gods.</p>
+
+        <div className="lp-actions">
+          <button className="lp-cta" onClick={onStart}>
+            <Rosette className="lp-rosette" />
+            <span>Begin your trial</span>
+            <Rosette className="lp-rosette" />
+          </button>
+          <button className="lp-ghost" onClick={onHall}>Hall of Heroes</button>
         </div>
-        <div className="oh-stylobate" />
-      </header>
 
-      <blockquote className="oh-proem">
-        <p>
-          {PROEM.split(' ').map((w, i) => (
-            <span key={i} style={{ '--i': i }}>{w} </span>
+        <ol className="lp-steps" aria-label="How it works">
+          {STEPS.map(([Icon, label], i) => (
+            <li key={label} style={{ '--i': i }}>
+              <Icon className="lp-step-icon" />
+              <span>{label}</span>
+            </li>
           ))}
-        </p>
-        <cite>Homer, <em>Odyssey</em> I · tr. Samuel Butler</cite>
-      </blockquote>
+        </ol>
+      </main>
 
-      <p className="tagline oh-tagline">
-        Choose a scene. Gather your crew. Watch the film, then perform it before the camera,
-        and the gods of Olympus will judge your words, your voice, your body and your soul.
-      </p>
-
-      <div className="oh-actions">
-        <button className="oh-shield" onClick={onStart}>
-          <Rosette className="oh-boss" />
-          <span>Begin your trial</span>
-        </button>
-        <button className="btn ghost" onClick={onHall}>Hall of Heroes</button>
-      </div>
-
-      <ul className="oh-gods" aria-label="The judges">
-        {GODS.map(([Art, name, dom], k) => (
-          <li key={name} className="oh-medallion" style={{ '--k': k }}>
-            <div className="oh-medal-disc"><Art className="oh-medal-art" /></div>
-            <span className="oh-god-name">{name}</span>
-            <span className="oh-god-domain">judges {dom.toLowerCase()}</span>
-          </li>
-        ))}
-      </ul>
-
-      <SeaVoyage><Ship className="oh-ship" /></SeaVoyage>
-
-      <div className="status">
-        {health === null ? 'Consulting the oracle…' : !health.ok ? (
-          <span className="bad">Backend offline. Start it on port 8000.</span>
-        ) : (
-          <>
-            <Dot on={health.elevenlabs} label="ElevenLabs" />
-            {'whisper' in health && <Dot on={health.whisper} label="Whisper" />}
-            <Dot on={health.gemini} label="Gemini" />
-            <Dot on={health.leaderboard === 'mongodb'} label={health.leaderboard === 'mongodb' ? 'MongoDB' : 'Local scores'} />
-          </>
-        )}
-      </div>
+      <Oracles health={health} />
     </div>
   )
 }
 
-function Dot({ on, label }) {
-  return <span className="dot-label"><span className={`dot ${on ? 'on' : ''}`} />{label}</span>
+// Tiny corner indicator for the backend services; labels appear on hover/focus.
+function Oracles({ health }) {
+  const items = !health ? [] : !health.ok ? [] : [
+    ['ElevenLabs', health.elevenlabs],
+    ...('whisper' in health ? [['Whisper', health.whisper]] : []),
+    ['Gemini', health.gemini],
+    [health.leaderboard === 'mongodb' ? 'MongoDB' : 'Local scores', health.leaderboard === 'mongodb'],
+  ]
+  const summary = health === null ? 'Consulting the oracles…'
+    : !health.ok ? 'Backend offline. Start it on port 8000.'
+      : items.map(([n, on]) => `${n}: ${on ? 'on' : 'off'}`).join(' · ')
+  return (
+    <div className={`lp-oracles ${health && !health.ok ? 'down' : ''}`} tabIndex={0} title={summary} aria-label={summary}>
+      <span className="lp-oracles-dots">
+        {health === null && <i className="pending" />}
+        {health && !health.ok && <i className="off" />}
+        {items.map(([n, on]) => <i key={n} className={on ? 'on' : ''} />)}
+      </span>
+      <span className="lp-oracles-label">{health && !health.ok ? 'Backend offline' : 'Oracles'}</span>
+      <span className="lp-oracles-detail">{summary}</span>
+    </div>
+  )
 }

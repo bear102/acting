@@ -1,0 +1,126 @@
+/* Landing scene. Every animation is transform or opacity only; layers are few and composited.
+   --px/--py (-1..1) come from the pointer; each .lp-par moves by its --d depth in px. */
+
+.lp-scene {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  --px: 0; --py: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 78% 30%, rgba(243, 213, 140, .10), transparent 60%),
+    linear-gradient(180deg, #050914 0%, #0a1430 38%, #1a1b3f 62%, #3a1426 82%, #2a0f1e 100%);
+}
+.lp-par {
+  position: absolute; inset: 0;
+  transform: translate3d(calc(var(--px) * var(--d) * -1px), calc(var(--py) * var(--d) * -.5px), 0);
+  will-change: transform;
+}
+
+/* ---------------- sky */
+.lp-sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lp-stars circle { fill: #f4ecdc; opacity: .75; }
+.lp-stars circle.tw { animation: lp-twinkle 4.5s ease-in-out infinite; animation-delay: var(--d); }
+@keyframes lp-twinkle { 0%, 100% { opacity: .9; } 50% { opacity: .2; } }
+
+.lp-const line { stroke: #f3d58c; stroke-opacity: .32; stroke-width: 1.4; stroke-linecap: round; }
+.lp-cstar { fill: #fff3cf; }
+.lp-cstar.tw { animation: lp-twinkle 3.6s ease-in-out infinite; animation-delay: var(--d); }
+.lp-const text { font: 600 15px 'Cinzel', serif; letter-spacing: .3em; fill: #f3d58c; opacity: .5; text-transform: uppercase; }
+.lp-const { animation: lp-const-in 2.4s ease both; animation-delay: calc(var(--i) * .35s + .4s); }
+@keyframes lp-const-in { from { opacity: 0; } }
+
+/* ---------------- moon */
+.lp-moon-wrap { inset: auto; top: 3vh; right: 12vw; width: min(30vh, 260px); height: min(30vh, 260px); }
+.lp-moon { width: 100%; height: 100%; }
+
+/* ---------------- Olympus storm */
+.lp-olympus { inset: auto; top: 1.5vh; left: 2.5vw; width: min(22vw, 300px); }
+.lp-olympus svg { width: 100%; display: block; }
+.lp-cloud { fill: #222b55; opacity: .92; }
+.lp-cloud-rim path { fill: none; stroke: #c3cdee; stroke-opacity: .55; stroke-width: 2.5; stroke-linecap: round; }
+.lp-bolt { fill: #f3e6b0; opacity: 0; animation: lp-bolt 9s linear infinite 2s; }
+@keyframes lp-bolt {
+  0%, 40%, 42.5%, 45%, 100% { opacity: 0; }
+  41%, 43.5% { opacity: 1; }
+}
+
+/* ---------------- land */
+.lp-land-wrap { inset: auto 0 0 0; bottom: 20vh; height: 30vh; }
+.lp-land { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lp-hill-far { fill: #151633; }
+.lp-hill { fill: #0c0f22; }
+.lp-cave { fill: #05060e; }
+.lp-eye-glow { fill: #ff7a2e; opacity: .3; transform-box: fill-box; transform-origin: center; animation: lp-eye-glow 5s ease-in-out infinite; }
+.lp-eye-pupil { fill: #1a0a04; }
+.lp-eye-core, .lp-eye-pupil { transform-box: view-box; transform-origin: 233px 308px; }
+.lp-eye-core { fill: #ffb347; }
+.lp-eye-core, .lp-eye-pupil { animation: lp-blink 7s ease-in-out infinite; }
+@keyframes lp-eye-glow { 50% { opacity: .55; transform: scale(1.25); } }
+@keyframes lp-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.08); } }
+.lp-temple { fill: #e9d7ac; opacity: .78; }
+.lp-hearth { fill: #ffb347; animation: lp-flicker 2.6s ease-in-out infinite; }
+@keyframes lp-flicker { 0%, 100% { opacity: .9; } 40% { opacity: .45; } 70% { opacity: .75; } }
+.lp-place { font: 600 13px 'Cinzel', serif; letter-spacing: .4em; fill: #f3d58c; opacity: .55; text-transform: uppercase; }
+
+/* ---------------- sea */
+.lp-sea { inset: auto 0 0 0; height: 27vh; }
+.lp-wave {
+  position: absolute; left: 0; width: 200%; background-repeat: repeat-x; background-size: 400px 100%;
+  animation: lp-drift linear infinite; will-change: transform;
+}
+.lp-sea-far  { bottom: 0; height: 100%; animation-duration: 60s; }
+.lp-sea-mid  { bottom: 0; height: 66%; animation-duration: 38s; animation-direction: reverse; }
+.lp-sea-near { bottom: 0; height: 36%; animation-duration: 24s; }
+/* The tile is 400px wide, so shifting by exactly one tile multiple keeps it seamless */
+@keyframes lp-drift { to { transform: translate3d(-1200px, 0, 0); } }
+
+.lp-moonpath { position: absolute; top: 4%; right: calc(12vw + min(15vh, 130px) - 50px); width: 100px; height: 70%; }
+.lp-moonpath i {
+  position: absolute; left: 50%; height: 3px; border-radius: 2px; background: #f3d58c;
+  top: calc(var(--i) * 10%); width: calc(30px + var(--i) * 9px); margin-left: calc((30px + var(--i) * 9px) / -2);
+  opacity: .35; animation: lp-shimmer 3s ease-in-out infinite; animation-delay: calc(var(--i) * -.37s);
+}
+@keyframes lp-shimmer { 50% { opacity: .08; transform: scaleX(.6); } }
+
+/* ship: crosses the sea slowly (outer), bobs on the swell (inner), sail breathes */
+.lp-ship-lane {
+  position: absolute; left: 0; bottom: 50%; width: clamp(150px, 15vw, 230px);
+  animation: lp-cross 95s linear infinite; animation-delay: -38s; will-change: transform;
+}
+@keyframes lp-cross { from { transform: translate3d(-260px, 0, 0); } to { transform: translate3d(calc(100vw + 40px), 0, 0); } }
+.lp-ship-bob { animation: lp-bob 5.5s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes lp-bob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(5px) rotate(1.5deg); } }
+.lp-ship { width: 100%; display: block; overflow: visible; }
+.lp-sail { transform-box: view-box; transform-origin: 130px 60px; animation: lp-billow 4s ease-in-out infinite; }
+@keyframes lp-billow { 50% { transform: scaleX(1.05) scaleY(.98); } }
+.lp-pennant { fill: #e8b84a; transform-box: fill-box; transform-origin: 0 50%; animation: lp-pennant 1.6s ease-in-out infinite; }
+@keyframes lp-pennant { 50% { transform: scaleX(.7) skewY(6deg); } }
+
+/* sea serpent surfaces now and then between the mid and near swells */
+.lp-serpent { position: absolute; left: 13%; bottom: 8%; width: clamp(150px, 16vw, 250px); opacity: 0; animation: lp-serpent 17s ease-in-out infinite 4s; will-change: transform, opacity; }
+.lp-serpent-svg { width: 100%; display: block; }
+@keyframes lp-serpent {
+  0%, 55%, 100% { opacity: 0; transform: translate3d(-20px, 70%, 0); }
+  65% { opacity: 1; transform: translate3d(0, 8%, 0); }
+  80% { opacity: 1; transform: translate3d(30px, 4%, 0); }
+  92% { opacity: 0; transform: translate3d(60px, 70%, 0); }
+}
+
+/* ---------------- paused / reduced motion */
+.lp-paused, .lp-paused * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-scene *, .lp-scene { animation: none !important; }
+  .lp-par { transform: none; }
+  .lp-ship-lane { transform: translate3d(58vw, 0, 0); }
+  .lp-bolt, .lp-serpent { opacity: 0; }
+}
+
+/* short laptop screens: keep the land low so the sky has room for the gods */
+@media (max-height: 700px) {
+  .lp-land-wrap { height: 24vh; bottom: 21vh; }
+  .lp-sea { height: 25vh; }
+}
+
+/* small screens: drop the heavy extras */
+@media (max-width: 640px) {
+  .lp-const text, .lp-olympus, .lp-moonpath { display: none; }
+  .lp-moon-wrap { top: auto; bottom: 30vh; right: 4vw; width: 18vh; height: 18vh; }
+}

@@ -2,7 +2,8 @@ import { PLAYER_COLORS } from '../vision.js'
 import { activeCharacter } from './pose.js'
 import { EMOTION_ICONS } from './emotions.js'
 
-// Cast list: who plays whom, the current/next stage direction, and who is "on" right now.
+// Cast list: who plays whom, their current/next line, and who is "on" right now.
+// Lines only, no stage directions: on stage they crowd the screen and nobody can read them mid-take.
 export default function Roster({ scene, team, t, compact = false }) {
   const active = t == null ? null : activeCharacter(scene, t)
   return (
@@ -17,7 +18,7 @@ export default function Roster({ scene, team, t, compact = false }) {
               <span className="sg-role-emo">{EMOTION_ICONS[line?.emotion] || '🏺'}</span>
               <div className="sg-role-text">
                 <div className="sg-role-name">{c.name} <span>· {team.players[pi].name}</span></div>
-                <div className="sg-role-hint">{line ? (line.direction || line.text) : 'Your part is done.'}</div>
+                <div className="sg-role-hint">{line ? line.text : 'Your part is done.'}</div>
               </div>
             </div>
           )

@@ -19,7 +19,7 @@ export const api = {
   },
 }
 
-// Browser text-to-speech, used for rehearsal read-throughs and as Zeus's backup voice.
+// Browser text-to-speech, used for rehearsal read-throughs.
 export function speak(text, { pitch = 1, rate = 1 } = {}) {
   return new Promise((resolve) => {
     if (!window.speechSynthesis) return resolve()

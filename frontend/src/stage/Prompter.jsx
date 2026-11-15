@@ -54,7 +54,6 @@ function Line({ line, t, team, name, big }) {
       <div className="sg-speaker" style={{ color: PLAYER_COLORS[p] }}>
         {EMOTION_ICONS[line.emotion] && <span className="sg-emo" title={line.emotion}>{EMOTION_ICONS[line.emotion]}</span>}
         {name} <span className="sg-player">· {team.players[p].name}</span>
-        {line.direction && <span className="sg-dir">{line.direction}</span>}
       </div>
       <div className="sg-words">
         {words.map((w, i) => <span key={i} className={big && i < lit ? 'lit' : ''}>{w} </span>)}
