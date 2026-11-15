@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+httpx
+numpy
+librosa
+soundfile
+imageio-ffmpeg
+google-genai
+pymongo
+# preprocessing only
+mediapipe
+opencv-python-headless

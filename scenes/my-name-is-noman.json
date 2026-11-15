@@ -1,0 +1,74 @@
+{
+  "id": "my-name-is-noman",
+  "order": 2,
+  "title": "My Name Is Noman",
+  "book": "Book IX",
+  "blurb": "Trapped in the Cyclops's cave, outwit a one-eyed giant with a fake name.",
+  "difficulty": "Medium",
+  "video": null,
+  "duration": 50.3,
+  "characters": [
+    {
+      "id": "polyphemus",
+      "name": "Polyphemus",
+      "description": "A furious, hungry, one-eyed giant."
+    },
+    {
+      "id": "odysseus",
+      "name": "Odysseus",
+      "description": "Clever, cornered, and lying through his teeth."
+    }
+  ],
+  "lines": [
+    {
+      "character": "polyphemus",
+      "text": "Strangers, who are you? And from what port have you sailed the wet ways?",
+      "emotion": "rage",
+      "direction": "Loom over them. Squint with your one eye.",
+      "start": 1.5,
+      "end": 8.5
+    },
+    {
+      "character": "odysseus",
+      "text": "We are Achaeans, driven by the winds of heaven. We are your suppliants. Respect the gods.",
+      "emotion": "resolve",
+      "direction": "Kneel, but hold his gaze.",
+      "start": 9.3,
+      "end": 17.2
+    },
+    {
+      "character": "polyphemus",
+      "text": "Stranger, you are a fool. We Cyclopes care nothing for Zeus. Tell me your name.",
+      "emotion": "cunning",
+      "direction": "Lean in close. Grin.",
+      "start": 18.0,
+      "end": 25.4
+    },
+    {
+      "character": "odysseus",
+      "text": "Cyclops, you ask my name. My name is Noman. My father and mother call me Noman.",
+      "emotion": "cunning",
+      "direction": "A sly smile. Hand to chest.",
+      "start": 26.2,
+      "end": 34.1
+    },
+    {
+      "character": "polyphemus",
+      "text": "Then I will eat Noman last of all his comrades. That shall be your present.",
+      "emotion": "joy",
+      "direction": "Laugh. Rub your belly.",
+      "start": 34.9,
+      "end": 42.3
+    },
+    {
+      "character": "polyphemus",
+      "text": "Help! Noman is killing me by craft and not by force!",
+      "emotion": "rage",
+      "direction": "Clutch your eye. Stagger. Roar.",
+      "start": 43.1,
+      "end": 48.8
+    }
+  ],
+  "source": "Homer, The Odyssey, tr. Samuel Butler (public domain), adapted",
+  "reference": null
+}
