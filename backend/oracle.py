@@ -125,16 +125,21 @@ SCORES (0-100) AND MEASUREMENTS:
 - Ares (movement): {ares[score]} - {ares[note]}
 - Aphrodite (facial emotion): {aphrodite[score]} - {aphrodite[note]}
 - Overall: {overall[score]} -> rank "{overall[rank]}"
+{highlights}
 
 {frames_hint}
 
+The players see your words next to charts of every line, so be BRIEF: each god gets one zinger a
+crowd can read in two seconds. Name a concrete moment (a line, a word they dropped, a gesture)
+rather than describing the score.
+
 Respond with JSON only:
 {{
-  "athena": "<one sentence from Athena about the words>",
-  "apollo": "<one sentence from Apollo about the voice>",
-  "ares": "<one sentence from Ares about movement>",
-  "aphrodite": "<one sentence from Aphrodite about emotion>",
-  "zeus": "<Zeus's final verdict, 2-3 sentences, spoken aloud, references something concrete; do not quote numeric scores>",
+  "athena": "<Athena on the words, max 12 words>",
+  "apollo": "<Apollo on the voice, max 12 words>",
+  "ares": "<Ares on the movement, max 12 words>",
+  "aphrodite": "<Aphrodite on the emotion, max 12 words>",
+  "zeus": "<Zeus's final verdict: ONE sentence, max 24 words, about something concrete; no numeric scores>",
   "epithet": "<a Homeric epithet for the team, e.g. 'the Wine-Spilling Crew'>"{critic_schema}
 }}"""
 
@@ -218,7 +223,8 @@ def parse_critic(data: dict, scene: dict) -> dict | None:
 
 
 async def verdict(scene: dict, team: str, cast: str, heard: str, judges: dict,
-                  overall: dict, frames: list[bytes], pairs: list[dict] | None = None) -> dict:
+                  overall: dict, frames: list[bytes], pairs: list[dict] | None = None,
+                  highlights: str = "") -> dict:
     """The gods' commentary. Given film `pairs` (film_frames.film_pairs), Gemini also compares the
     players with the film side by side; that lands in result["critic"] (None if unavailable/invalid)."""
     key = _gemini_key()
@@ -231,7 +237,7 @@ async def verdict(scene: dict, team: str, cast: str, heard: str, judges: dict,
                 char_ids=", ".join(c["id"] for c in scene["characters"]),
                 script=script, heard=heard or "(nothing intelligible)", overall=overall,
                 frames_hint=PAIRS_HINT if has_pairs else (SOLO_HINT if frames else ""),
-                critic_schema=CRITIC_SCHEMA if has_pairs else "",
+                critic_schema=CRITIC_SCHEMA if has_pairs else "", highlights=highlights,
                 **judges,
             )
             contents = build_contents(scene, frames, pairs if has_pairs else None, prompt)
@@ -271,10 +277,8 @@ def _fallback(judges: dict, overall: dict) -> dict:
                           "A flicker of feeling, like a lamp in the wind.",
                           "Your faces showed the emotion of a boiled octopus."),
         "zeus": random.choice([
-            f"I, Zeus, cloud-gatherer, have watched. Your glory is {overall['kleos']} kleos - "
-            f"you are named {overall['rank']}. Now go, before Poseidon notices you.",
-            f"Hear me, mortals! {overall['kleos']} kleos. The council names you {overall['rank']}. "
-            "Pour a libation and try again.",
+            f"I, Zeus, cloud-gatherer, name you {overall['rank']}. Now go, before Poseidon notices you.",
+            f"Hear me, mortals: the council names you {overall['rank']}. Pour a libation and try again.",
         ]),
         "epithet": random.choice(["the Storm-Tossed Crew", "the Much-Enduring Troupe",
                                   "the Wine-Dark Players", "the Lotus-Dazed Company"]),

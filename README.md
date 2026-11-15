@@ -26,6 +26,18 @@ Zeus delivers the final verdict, and your crew earns *kleos* (glory) in the Hall
 | Ares ⚔️ (20%) | Movement | Shoulder-normalized upper-body pose. Each on-screen frame of the film actor is matched to the player's best frame within ±0.6 s, using only landmarks visible in both. Without a reference, gesture boldness |
 | Aphrodite 🌹 (20%) | Emotion | Face blendshapes matched the same ±0.6 s way against the actor, blended with the emotion each line calls for (rage, fear, joy, cunning…) |
 
+**The verdict** (`backend/reel.py`, `frontend/src/verdict/`) shows those measurements instead of describing them:
+
+- **Voyage**: your ship sails the road of ranks to your kleos, and a chip says how many kleos the next rank costs,
+  how you did against your last attempt, and which crew sits just ahead of you in the Hall.
+- **Reel**: one tile per line with 0-3 laurels. Pick a line to see the script with every word marked hit, near
+  or missed, how far off cue it landed, its four scores, and your snapshot beside the film still.
+- **Council**: one dial and one short zinger per god. The raw notes are folded under "How the gods measured".
+- **Laurels**: awards that are only true of this take (line of the night, streaks, timing) and an epithet per player.
+
+The reel only reshapes what the judges measured; it never adds points. `/?preview=verdict` on the dev server opens
+this screen on a canned take.
+
 Each integration falls back if it's missing: no ElevenLabs key means local **Whisper** (faster-whisper,
 `WHISPER_MODEL`, default `base.en`) for speech-to-text, then browser speech recognition, plus browser TTS; no Gemini key means canned quips; no Mongo URI means a local JSON leaderboard.
 
