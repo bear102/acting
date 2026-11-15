@@ -127,6 +127,15 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     film_task = asyncio.ensure_future(run_in_threadpool(film_frames.film_pairs, scene, SCENES_DIR, times))
 
     pcm = await run_in_threadpool(_decode, audio_bytes)
+    assignments = {c: int(p) for c, p in m["assignments"].items()}
+    players = m["features"]["players"]
+
+    # Everything that doesn't need the transcript runs WHILE speech-to-text is in flight
+    # (voice contours + the body/face judges: ~1.4 s that used to wait behind the ~1.5 s STT call).
+    contours_task = asyncio.ensure_future(run_in_threadpool(_contours, pcm))
+    body_task = asyncio.ensure_future(run_in_threadpool(
+        lambda: (scoring.judge_ares(scene, assignments, players),
+                 scoring.judge_aphrodite(scene, assignments, players))))
 
     # --- ears: ElevenLabs Scribe -> local Whisper -> the browser's own speech recognition
     words = await oracle.transcribe(audio_bytes, audio.filename if audio else "take.webm")
@@ -146,18 +155,17 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     has_times = any(w.get("start") is not None for w in words)
     heard_text = " ".join(w["text"] for w in words)
 
-    # --- the four judges (CPU-bound, off the event loop)
-    contours = await run_in_threadpool(_contours, pcm)
-    assignments = {c: int(p) for c, p in m["assignments"].items()}
-    players = m["features"]["players"]
+    # --- the four judges (CPU-bound, off the event loop); Ares/Aphrodite already ran during STT
+    contours = await contours_task
+    ares, aphrodite = await body_task
 
     def judge():
         athena = scoring.judge_athena(scene, words)
         return {
             "athena": athena,
             "apollo": scoring.judge_apollo(scene, contours, athena, has_times),
-            "ares": scoring.judge_ares(scene, assignments, players),
-            "aphrodite": scoring.judge_aphrodite(scene, assignments, players),
+            "ares": ares,
+            "aphrodite": aphrodite,
         }
 
     judges = await run_in_threadpool(judge)
