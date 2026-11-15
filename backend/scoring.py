@@ -141,6 +141,19 @@ def align(script: list[str], heard: list[str]) -> list[tuple[int, int, float]]:
     return out[::-1]
 
 
+def _supported(matches: list[tuple[int, int, float]], script: list[str]) -> list[tuple[int, int, float]]:
+    """Keep matches that are part of a run (a neighbour in the script also matched next to it in
+    what was heard) or are distinctive words. Unrelated chatter shares "the", "of", "out"... with any
+    script; isolated hits like that are coincidence, not lines."""
+    by_i = {i: j for i, j, _ in matches}
+    kept = []
+    for i, j, c in matches:
+        run = any(k in by_i and 0 < abs(by_i[k] - j) <= 2 for k in (i - 1, i + 1))
+        if run or (len(script[i]) >= 5 and c >= 0.8):
+            kept.append((i, j, c))
+    return kept
+
+
 def judge_athena(scene: dict, heard_words: list[dict]) -> dict:
     """heard_words: [{"text": str, "start": float|None, "end": float|None}] in spoken order."""
     script, owner = [], []
@@ -156,7 +169,7 @@ def judge_athena(scene: dict, heard_words: list[dict]) -> dict:
             h_end.append(hw.get("end"))
             h_raw.append(hw["text"])
 
-    matches = align(script, heard)
+    matches = _supported(align(script, heard), script)
     credit = {i: (j, c) for i, j, c in matches}
 
     per_line = []
@@ -460,7 +473,7 @@ def _lag_match(ref_items: list, pl_items: list, sim) -> tuple[list, float, float
 
 # =========================================================================== Ares
 
-_ARES_LO, _ARES_HI = 0.30, 0.90
+_ARES_LO, _ARES_HI = 0.25, 0.90
 
 
 def _pose_frame_score(r, p) -> tuple[float, float] | None:
@@ -522,32 +535,66 @@ def _pose_track_score_oriented(ref: list, player: list) -> dict:
         dyn_num += s * (b - a)
         dyn_den += b - a
     dyn = dyn_num / dyn_den if dyn_den else match
-    raw = 0.55 * match + 0.45 * dyn
+    # Moving with the actor scales the pose credit: holding the right still pose through a scene
+    # where the actor moves is not acting.
+    raw = match * (0.3 + 0.7 * dyn)
     return {"usable": True, "raw": raw, "match": match, "dynamics": dyn,
             "frames": [None if v is None else round(calibrate(v, _ARES_LO, _ARES_HI)) for v in frame_scores],
             "missing": missing * usable}
 
 
+def _own_line_mask(scene: dict, char_id: str, n: int, tail: int = 5) -> np.ndarray:
+    own = np.zeros(n, bool)
+    for line in scene["lines"]:
+        if line["character"] == char_id:
+            own[int(line["start"] * FEATURE_FPS): int(line["end"] * FEATURE_FPS) + tail] = True
+    return own
+
+
+def _idle_level(values: np.ndarray, own: np.ndarray) -> float:
+    """The player's own idle level: median outside their lines (or a low percentile if they
+    speak nearly all the time). Anything constant - jitter, fidgeting, random waving - sits at
+    this level and therefore earns nothing."""
+    rest = values[~own]
+    return float(np.median(rest)) if len(rest) >= 10 else float(np.percentile(values, 25))
+
+
 def _ares_no_ref(scene: dict, char_id: str, player: list) -> tuple[float, str | None]:
-    """Old text scenes: reward purposeful movement during your own lines, not idle fidgeting."""
+    """Text scenes: credit movement and posture that rise ON YOUR OWN LINES above your idle level.
+
+    Per line: (a) movement above the player's idle movement, (b) how far the body is from its idle
+    pose compared with how far it usually wanders. The character's score is the MEDIAN over their
+    lines, so one lucky line of fidgeting doesn't count and constant waving earns nothing."""
     raw = normalize_pose_seq(player)
     cov = coverage(raw)
     if cov < 0.05:
         return 0.0, "never appeared in frame"
-    mv = np.nan_to_num(pose_motion(player))
-    jitter = 0.03  # typical webcam landmark jitter per frame, in shoulder widths
-    own = np.zeros(len(mv), bool)
-    for line in scene["lines"]:
-        if line["character"] == char_id:
-            own[int(line["start"] * FEATURE_FPS): int(line["end"] * FEATURE_FPS) + 5] = True
-    own = own[: len(mv)]
+    seq = fill_gaps(raw)
+    mv = _smooth(np.nan_to_num(pose_motion(player)), 3)[: len(seq)]
+    own = _own_line_mask(scene, char_id, len(seq))
     if not own.any():
         return 0.0, None
-    active = np.clip(mv[own] - jitter, 0, None)
-    energy = min(1.0, float(active.mean()) / 0.06)  # deliberate gestures ~0.09/frame
-    seq = fill_gaps(raw)
-    reach = min(1.0, float(np.ptp(seq[:, 6:14], axis=0).mean()) / 1.2) if len(seq) else 0.0
-    s = 100 * (0.6 * energy + 0.4 * reach * energy) * min(1.0, cov / 0.8)
+    idle_pose = np.median(seq[~own], axis=0) if (~own).sum() >= 10 else np.median(seq, axis=0)
+    # A gesture is usually one limb: take the most-displaced landmark, not the average of seven.
+    dev = np.linalg.norm((seq - idle_pose).reshape(len(seq), -1, 2), axis=2).max(axis=1)
+    # Same statistic inside and outside the lines (like with like), and the excess is scaled by how
+    # restless the player is at rest: a gesture has to stand out against your own fidgeting.
+    rest = ~own if (~own).sum() >= 10 else np.ones(len(own), bool)
+    mv_idle = float(np.mean(mv[rest]))
+    dev_idle = float(np.percentile(dev[rest], 80))
+    per_line = []
+    for line in scene["lines"]:
+        if line["character"] != char_id:
+            continue
+        a, b = int(line["start"] * FEATURE_FPS), int(line["end"] * FEATURE_FPS) + 5
+        if a >= len(seq):
+            continue
+        m = calibrate((float(np.mean(mv[a:b])) - mv_idle) / (1 + mv_idle / 0.1), 0.01, 0.06)
+        d = calibrate((float(np.percentile(dev[a:b], 80)) - dev_idle) / (1 + dev_idle / 0.3), 0.10, 0.80)
+        per_line.append(0.4 * m + 0.6 * d)
+    if not per_line:
+        return 0.0, None
+    s = float(np.median(per_line)) * min(1.0, cov / 0.8)
     return s, ("wandered out of frame" if cov < 0.6 else None)
 
 
@@ -618,23 +665,34 @@ def _face_frame_sim(r: np.ndarray, p: np.ndarray) -> tuple[float, float] | None:
 
 
 def _emotion_scores(scene: dict, char_id: str, centered: np.ndarray) -> list[tuple[int, float]]:
-    """Per line of this character: does the face move FROM ITS OWN BASELINE toward the emotion?"""
+    """Per line of this character: does the face move toward the line's emotion, compared with the
+    player's own face outside their lines? Shape only (frame-demeaned), so 'everything up' gurning
+    or random twitching does not count."""
+    valid = ~np.isnan(centered).any(axis=1)
+    if valid.sum() == 0:
+        return []
+    shaped = np.where(valid[:, None], centered - np.nanmean(centered, axis=1, keepdims=True), np.nan)
+    own = _own_line_mask(scene, char_id, len(shaped))
     out = []
     for li, line in enumerate(scene["lines"]):
         if line["character"] != char_id:
             continue
         target = emotion_vector(line.get("emotion"))
-        a, b = int(line["start"] * FEATURE_FPS), int(line["end"] * FEATURE_FPS) + 5
-        win = centered[a:b]
-        win = win[~np.isnan(win).any(axis=1)] if len(win) else win
-        if target is None or len(win) == 0:
+        if target is None:
             continue
-        proj = win @ target
-        act = float(np.percentile(proj, 85))
-        top = win[proj >= np.percentile(proj, 70)].mean(axis=0)
-        tn = float(np.linalg.norm(top))
-        spec = max(0.0, float(top @ target) / tn) if tn > 1e-4 else 0.0
-        out.append((li, min(1.0, max(0.0, act) / 0.15) * (0.3 + 0.7 * spec)))
+        t = target - target.mean()
+        t /= np.linalg.norm(t)
+        proj = np.where(valid, np.nan_to_num(shaped) @ t, np.nan)
+        a, b = int(line["start"] * FEATURE_FPS), int(line["end"] * FEATURE_FPS) + 5
+        win = proj[a:b]
+        win = win[~np.isnan(win)]
+        rest = proj[~own & valid]
+        if len(win) == 0:
+            continue
+        # Like for like: the same percentile of the same projection outside the player's lines.
+        idle = float(np.percentile(rest, 80)) if len(rest) >= 10 else float(np.nanpercentile(proj, 25))
+        spread = float(np.std(rest)) if len(rest) >= 10 else 0.0
+        out.append((li, calibrate((float(np.percentile(win, 80)) - idle) / (1 + spread / 0.05), 0.03, 0.20) / 100))
     return out
 
 
@@ -723,8 +781,8 @@ def judge_aphrodite(scene: dict, assignments: dict, players: list[dict]) -> dict
             notes.append(f"{name} hid their face from the gods")
             continue
         emo = [s for _, s in _emotion_scores(scene, char_id, arr - base)]
-        s = 100 * float(np.mean(emo)) if emo else 0.0
-        per_char[char_id] = round(calibrate(s / 100, 0.05, 0.8) * min(1.0, coverage(arr) / 0.8))
+        s = 100 * float(np.median(emo)) if emo else 0.0  # median: one lucky line doesn't count
+        per_char[char_id] = round(s * min(1.0, coverage(arr) / 0.8))
         if coverage(arr) < 0.6:
             notes.append(f"{name} hid their face from the gods")
     score = float(np.mean(list(per_char.values()))) if per_char else 0
