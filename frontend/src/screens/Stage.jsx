@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, drawSpotlight, faceFeature, poseFeature,
+  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
 } from '../vision.js'
 import { createDetector, videoRecordingMime } from '../stage/detector.js'
 import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
@@ -155,7 +155,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
       if (L.dirty) {
         L.dirty = false
-        draw(canvas, v, L.poses, L.recording ? speakerAt(getTime()) : -1, now)
+        draw(canvas, v, L.poses, L.recording ? speakerAt(getTime()) : -1)
         if (L.debug) drawDebug(canvas, now)
       }
       if (now - lastUi > 100) {
@@ -233,15 +233,14 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
     // Overlay only: the camera itself is the <video> underneath (mirrored in CSS). The canvas
     // keeps the camera's aspect ratio and the same object-fit as the video, so they line up.
-    function draw(canvas, v, poses, speaker, now) {
+    function draw(canvas, v, poses, speaker) {
       const w = Math.min(960, v.videoWidth || 960)
       const h = Math.round((w * (v.videoHeight || 540)) / (v.videoWidth || 960))
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
       const ctx = canvas.getContext('2d')
       ctx.clearRect(0, 0, w, h)
-      // During a take, whoever's line it is stands in a spotlight; everyone else is dimmed.
-      if (speaker >= 0) drawSpotlight(ctx, poses[speaker], PLAYER_COLORS[speaker], w, h, 0.5 + 0.5 * Math.sin(now / 260))
-      // Otherwise identity only: a faint skeleton + name tag so players know they're being tracked.
+      // A faint skeleton + name tag so players know they're tracked; during a take, whoever's line
+      // it is gets their name tag filled in their colour.
       poses.forEach((p, i) => drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h, i === speaker))
     }
 

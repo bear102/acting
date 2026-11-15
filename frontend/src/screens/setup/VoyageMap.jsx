@@ -4,18 +4,18 @@ import { Ship } from '../../ui/Art.jsx'
 import { NUMERALS } from './constants.js'
 
 const W = 1000
-const H = 160
+const H = 240 // tall chart; content keeps to the middle band so the 'slice' crop never cuts an island
 const ISLE = 'M-40 -6 Q-36 -28 -10 -30 Q8 -40 26 -24 Q46 -20 42 0 Q50 18 28 24 Q10 36 -10 28 Q-38 30 -42 10 Z'
 
 // Decorative islets scattered between the waypoints: [x, y, scale, rotation]
-const ISLETS = [[40, 128, .5, 10], [255, 34, .45, -25], [470, 136, .4, 30], [690, 30, .45, 60], [905, 136, .4, -10]]
+const ISLETS = [[40, 186, .6, 10], [255, 52, .55, -25], [470, 200, .5, 30], [690, 46, .55, 60], [905, 196, .5, -10]]
 
 function waypoints(n) {
   const x0 = 150
   const x1 = 830
   return Array.from({ length: n }, (_, i) => {
     const x = n === 1 ? (x0 + x1) / 2 : x0 + ((x1 - x0) * i) / (n - 1)
-    const y = i % 2 === 0 ? 92 : 64
+    const y = i % 2 === 0 ? 134 : 104
     return [x, y]
   })
 }
@@ -33,7 +33,7 @@ function route(pts) {
 
 export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
   const pts = waypoints(scenes.length)
-  const ithaca = [935, 76]
+  const ithaca = [935, 112]
   const last = pts[pts.length - 1]
 
   return (
@@ -62,17 +62,17 @@ export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
         <path d={`M${last[0]} ${last[1]} C${last[0] + 50} ${last[1]} ${ithaca[0] - 60} ${ithaca[1]} ${ithaca[0] - 34} ${ithaca[1]}`}
           className="sx-route faint" />
 
-        <Ship className="sx-ship" x="24" y="48" width="78" height="48" />
+        <Ship className="sx-ship" x="14" y="84" width="96" height="58" />
 
         <g className="sx-ithaca" transform={`translate(${ithaca[0]} ${ithaca[1]})`}>
-          <path d={ISLE} transform="scale(.8)" />
-          <g className="sx-temple" transform="translate(0 -6)">
+          <path d={ISLE} transform="scale(1)" />
+          <g className="sx-temple" transform="translate(0 -6) scale(1.2)">
             <path d="M-14 -6 L0 -15 L14 -6 Z" />
             <rect x="-13" y="-5" width="26" height="2.5" />
             {[-10, -5, 0, 5, 10].map((x) => <rect key={x} x={x - 1} y="-2" width="2" height="10" />)}
             <rect x="-14" y="8" width="28" height="2.5" />
           </g>
-          <text y="44" textAnchor="middle">ITHACA</text>
+          <text y="54" textAnchor="middle">ITHACA</text>
         </g>
 
         {scenes.map((s, i) => {
@@ -87,10 +87,10 @@ export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
               onMouseEnter={() => onHover(s.id)} onMouseLeave={() => onHover(null)}
               onFocus={() => onHover(s.id)} onBlur={() => onHover(null)}>
               <title>{s.title}</title>
-              <path d={ISLE} className="sx-wp-isle" transform="scale(.82)" />
-              <circle r="17" className="sx-wp-ring" />
-              <text className="sx-wp-num" y="5.5" textAnchor="middle">{NUMERALS[i]}</text>
-              {s.video && <text className="sx-wp-star" x="16" y="-14">★</text>}
+              <path d={ISLE} className="sx-wp-isle" transform="scale(1.02)" />
+              <circle r="21" className="sx-wp-ring" />
+              <text className="sx-wp-num" y="6.5" textAnchor="middle">{NUMERALS[i]}</text>
+              {s.video && <text className="sx-wp-star" x="20" y="-18">★</text>}
             </g>
           )
         })}

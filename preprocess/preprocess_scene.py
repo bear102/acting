@@ -52,14 +52,17 @@ MIN_SHOT = 0.4        # seconds; cuts closer together than this are merged
 
 # --------------------------------------------------------------------------- clip
 
-def cut_clip(src: Path, dst: Path, start: float | None, end: float | None) -> None:
+BRIGHTEN = "eq=gamma=1.6:brightness=0.03:contrast=1.08:saturation=1.2"  # lifts dark film scenes
+
+
+def cut_clip(src: Path, dst: Path, start: float | None, end: float | None, brighten: bool = False) -> None:
     cmd = [ffmpeg_exe(), "-v", "error", "-y"]
     if start is not None:
         cmd += ["-ss", f"{start:.3f}"]
     cmd += ["-i", str(src)]
     if end is not None:
         cmd += ["-t", f"{end - (start or 0):.3f}"]
-    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-vf", "scale=-2:720",
+    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-vf", "scale=-2:720" + ("," + BRIGHTEN if brighten else ""),
             "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dst)]
     subprocess.run(cmd, check=True)
 
@@ -302,6 +305,7 @@ def main() -> None:
     ap.add_argument("--shots-file", type=Path, help="JSON list of {start, end, character}")
     ap.add_argument("--lines-from-transcript", action="store_true", help="generate the script from the dialogue")
     ap.add_argument("--retime", action="store_true", help="snap existing lines to the dialogue timing")
+    ap.add_argument("--brighten", action="store_true", help="lift dark footage (gamma/brightness/saturation grade) when cutting the clip")
     args = ap.parse_args()
 
     file_shots, header = read_shots_file(args.shots_file) if args.shots_file else (None, None)
@@ -312,7 +316,7 @@ def main() -> None:
     clip = media / f"{sid}.mp4"
     if args.video.resolve() != clip.resolve():
         print(f"1/5 cutting clip -> {clip}")
-        cut_clip(args.video, clip, args.start, args.end)
+        cut_clip(args.video, clip, args.start, args.end, brighten=args.brighten)
 
     print("2/5 detecting shots")
     auto_shots, duration = detect_shots(clip)

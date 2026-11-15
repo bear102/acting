@@ -36,7 +36,7 @@
 .ss-cast-pill strong { color: var(--pc); font-family: 'Cinzel', serif; }
 .ss-pill-mask { width: 24px; height: 24px; color: var(--pc); }
 
-.ss-rehearse-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.ss-rehearse-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .ss-rehearse-single { max-width: 820px; margin: 0 auto; }
 
 .ss-frame { margin: 0; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, #3b2a10, #1c1307);
@@ -124,7 +124,7 @@
    of the framed width, so the 16:9 film fills the opening exactly). */
 .ss-frame { container-type: inline-size; padding: 0; background: none; border: 0; box-shadow: none; }
 .ss-frame-inner {
-  --fw: min(100cqw, calc((100vh - 375px) * 1.574));
+  --fw: min(100cqw, calc((100vh - 345px) * 1.574));
   width: var(--fw); margin: 0 auto; box-sizing: border-box;
   border-radius: 0; overflow: visible; background: none;
   border-style: solid;
@@ -143,4 +143,8 @@
   position: absolute; left: 12px; top: 12px; padding: 4px 14px; border-radius: 999px; pointer-events: none;
   font: 700 clamp(.9rem, 2.2vh, 1.15rem) 'Cinzel', serif; letter-spacing: .06em; color: var(--sea-deep);
   background: var(--pc); box-shadow: 0 0 18px var(--pc); animation: rise .25s ease both;
+}
+/* short laptop screens: drop the judged-by legend so the film can be bigger */
+@media (min-width: 901px) and (max-height: 820px) {
+  .ss-rehearse-grid .ss-judged { display: none; }
 }
