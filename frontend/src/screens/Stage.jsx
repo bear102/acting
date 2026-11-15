@@ -7,6 +7,7 @@ import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
 import Roster from '../stage/Roster.jsx'
 import { snapshotPlan } from '../stage/snapshots.js'
+import useFullscreen from '../stage/useFullscreen.js'
 import '../stage/stage.css'
 
 const PRAISE = ['Ares approves!', 'Athena nods.', 'Apollo smiles upon you.', 'Zeus is watching…', 'Hermes takes note.', 'The Muse sings of this!']
@@ -25,6 +26,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
   const [toasts, setToasts] = useState([])
+  const fullscreen = useFullscreen()
 
   const nPlayers = team.players.length
   const hasRef = !!scene.reference?.pose
@@ -406,14 +408,20 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   )
 
   return (
-    <div className="sg-wrap">
+    <div className={`sg-wrap ${isLive ? 'is-live' : ''} ${hasFilm ? 'has-film' : 'no-film'}`}>
       <header className="sg-head">
-        <div>
+        <div className="sg-head-titles">
           <p className="sg-eyebrow">{scene.book} · The Trial</p>
           <h2 className="sg-title">{scene.title}</h2>
         </div>
         <div className="sg-head-right">
           {isLive && <div className="sg-rec"><span className="sg-rec-dot" /> {t.toFixed(1)}s / {scene.duration}s</div>}
+          {fullscreen.supported && (
+            <button type="button" className="btn ghost sg-small-btn sg-fs-btn" onClick={fullscreen.toggle}
+              title={fullscreen.on ? 'Exit fullscreen (Esc)' : 'Fill the screen: best for laptops'}>
+              {fullscreen.on ? '⤡ Exit fullscreen' : '⛶ Fullscreen'}
+            </button>
+          )}
           {isLive ? (
             <button className="btn ghost sg-small-btn" onClick={finish}>End scene</button>
           ) : (phase === 'ready' || phase === 'loading' || error) && (
@@ -425,8 +433,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       {hasFilm ? (
         <>
           <div className="sg-duo">
-            <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} />
-            {camera}
+            <div className="sg-cell sg-cell-film">
+              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} />
+            </div>
+            <div className="sg-cell sg-cell-cam">{camera}</div>
           </div>
           <div className="sg-band">
             {isLive ? <Prompter scene={scene} team={team} t={t} /> : (
@@ -437,9 +447,11 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         </>
       ) : (
         <>
-          {camera}
+          <div className="sg-solo">
+            <div className="sg-cell sg-cell-solo">{camera}</div>
+            <Roster scene={scene} team={team} t={isLive ? t : null} />
+          </div>
           {plaques}
-          <Roster scene={scene} team={team} t={isLive ? t : null} />
         </>
       )}
     </div>

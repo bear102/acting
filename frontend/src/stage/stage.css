@@ -2,32 +2,55 @@
    Torchlit hall: the film clip and the players' camera side by side in gold frames,
    subtitles in a band beneath. Uses the global theme variables. */
 
+/* The stage owns the whole viewport: header / [film | camera] / subtitles / plaques, no page scroll.
+   The film + camera row is a size container, so each panel is the largest 16:9 box that fits
+   BOTH its share of the width and the remaining height (container query units). */
+.app.screen-stage {
+  max-width: none;
+  height: calc(100dvh - 2 * var(--f, 0px));
+  padding: clamp(6px, 1.2vh, 12px) clamp(10px, 1.4vw, 20px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
 .sg-wrap {
   --bronze: #8a5a2b;
   --clay: #c8673a;
   --clay-deep: #7a3418;
   --ink: #160b07;
+  --gap: clamp(8px, 1.3vw, 18px);
+  --ring: 9px; /* gold border + sea + bronze box-shadow rings around each frame */
   position: relative;
-  width: min(1500px, calc(100vw - 32px));
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 12px);
   animation: sg-rise .4s ease both;
 }
-@keyframes sg-rise { from { opacity: 0; transform: translate(-50%, 10px); } }
+@keyframes sg-rise { from { opacity: 0; transform: translateY(10px); } }
 
-/* ---------- header */
-.sg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.sg-eyebrow { margin: 0; font: 600 .75rem 'Cinzel', serif; letter-spacing: .3em; text-transform: uppercase; color: var(--terracotta); }
-.sg-title { margin: 2px 0 0; font: 700 clamp(1.4rem, 2.6vw, 2rem) 'Cinzel', serif; color: var(--gold-soft); }
-.sg-head-right { display: flex; align-items: center; gap: 12px; }
-.sg-small-btn { padding: 7px 18px; font-size: .8rem; }
+/* ---------- header (one compact row) */
+.sg-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.sg-head-titles { min-width: 0; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.sg-eyebrow { margin: 0; font: 600 .72rem 'Cinzel', serif; letter-spacing: .3em; text-transform: uppercase; color: var(--terracotta); }
+.sg-title { margin: 0; font: 700 clamp(1.15rem, 3.2vh, 1.8rem) 'Cinzel', serif; color: var(--gold-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-head-right { display: flex; align-items: center; gap: 10px; flex: none; }
+.sg-small-btn { padding: 6px 16px; font-size: .78rem; }
+.sg-wrap.is-live .sg-eyebrow { display: none; } /* nonessential chrome off during the take */
 .sg-rec { display: flex; align-items: center; gap: 8px; font: 600 .9rem 'Cinzel', serif; color: var(--marble); font-variant-numeric: tabular-nums; }
 .sg-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e3402e; box-shadow: 0 0 10px #e3402e; animation: sg-blink 1s infinite; }
 @keyframes sg-blink { 50% { opacity: .25; } }
 
-/* ---------- layout: film | camera */
-.sg-duo { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 18px; align-items: end; }
-@media (max-width: 900px) { .sg-duo { grid-template-columns: 1fr; } }
+/* ---------- layout: film | camera (or camera | roster without a film) */
+.sg-duo, .sg-solo {
+  flex: 1; min-height: 0;
+  container-type: size;
+  display: flex; align-items: center; justify-content: center; gap: var(--gap);
+}
+.sg-cell { flex: none; }
+/* 16:9 box limited by both its width share and the row height (minus the frame rings) */
+.sg-cell-film { width: min(calc((100cqw - var(--gap)) * .54 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .46 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-cell-solo { width: min(calc(100cqw - var(--gap) - clamp(240px, 24cqw, 340px) - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-solo .sg-roster { flex: none; width: clamp(240px, 24cqw, 340px); max-height: 100cqh; overflow-y: auto; margin: 0; }
+.sg-solo .sg-roster-list { grid-template-columns: 1fr; }
 
 /* ---------- camera frame */
 .sg-frame {
@@ -200,4 +223,75 @@
 @media (max-width: 640px) {
   .sg-prompter { padding: 16px 12px 12px; }
   .sg-band .sg-prompter { padding: 10px 12px; }
+}
+
+/* ============================================================ Laptop fit
+   Everything below sizes the stage by viewport HEIGHT so it fits 1280x720 .. 1920x1080 laptops
+   without scrolling. Subtitles are big and high-contrast: players stand 2-3 m from the screen. */
+
+/* film caption now lives inside the frame, as an overlay */
+.sg-film-frame .sg-film-cap {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 1;
+  padding: 8px 12px 18px;
+  background: linear-gradient(180deg, rgba(10, 6, 14, .78), rgba(10, 6, 14, 0));
+  pointer-events: none;
+}
+.sg-film-frame .sg-film-cap .sg-hear { pointer-events: auto; }
+.sg-film-label { font-size: clamp(.62rem, 1.5vh, .8rem); text-shadow: 0 1px 4px #000; }
+.sg-hear { font-size: clamp(.62rem, 1.4vh, .74rem); padding: 3px 10px; }
+.sg-wrap.is-live .sg-hear-text { display: none; } /* icon only during the take */
+
+/* subtitles band: reserved height so the layout never jumps between lines */
+.sg-band {
+  flex: none; margin-top: 0; position: relative;
+  min-height: clamp(92px, 17vh, 168px);
+  background: linear-gradient(180deg, rgba(58, 20, 38, .6), rgba(8, 10, 22, .92));
+}
+.sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
+.sg-band .sg-upnext { position: absolute; top: 8px; left: 12px; margin: 0; font-size: clamp(.75rem, 1.7vh, .95rem); }
+.sg-band-idle { font-size: clamp(.95rem, 2.2vh, 1.2rem); }
+.sg-line .sg-speaker { font-size: clamp(.9rem, 2.3vh, 1.3rem); }
+.sg-dir { font-size: clamp(.85rem, 2vh, 1.1rem); color: #cdbfa6; }
+.sg-words { font-size: clamp(1.05rem, 2.8vh, 1.5rem); color: rgba(244, 236, 220, .62); }
+.sg-line.big .sg-words { font-size: clamp(1.5rem, 5vh, 2.9rem); line-height: 1.18; font-weight: 600; color: rgba(244, 236, 220, .5); }
+.sg-line.big .sg-words .lit { color: #fff8e8; text-shadow: 0 0 14px rgba(232, 184, 74, .7), 0 2px 2px #000; }
+.sg-cue { font-size: clamp(.95rem, 2.2vh, 1.2rem); }
+/* without a film the prompter overlays the camera: keep it big too */
+.sg-frame .sg-prompter { padding: clamp(10px, 2vh, 24px) clamp(14px, 2vw, 32px) clamp(10px, 1.6vh, 18px); }
+
+/* player plaques: one compact row */
+.sg-plaques { flex: none; margin-top: 0; gap: clamp(6px, 1vw, 12px); flex-wrap: nowrap; }
+.sg-plaque { min-width: 0; padding: clamp(5px, 1vh, 9px) 12px; display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 4px 12px; }
+.sg-plaque-top { display: contents; }
+.sg-plaque-top .sg-badge { grid-column: 1; grid-row: 1 / span 2; }
+.sg-plaque-names { grid-column: 2; grid-row: 1; }
+.sg-plaque-num { grid-column: 3; grid-row: 1 / span 2; font-size: clamp(1.1rem, 2.8vh, 1.5rem); }
+.sg-favor { grid-column: 2; grid-row: 2; margin-top: 0; }
+.sg-plaque-label { grid-column: 2; grid-row: 3; margin-top: 0; font-size: .66rem; }
+.sg-plaque:not(:has(.sg-favor)) .sg-plaque-label { grid-row: 2; }
+.sg-plaque-names strong { font-size: clamp(.85rem, 2vh, 1rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-plaque-names small { font-size: clamp(.72rem, 1.7vh, .85rem); }
+
+/* overlays inside the (now smaller) camera frame */
+.sg-overlay { padding: clamp(10px, 2vh, 24px); gap: clamp(6px, 1.2vh, 12px); font-size: clamp(.9rem, 2.1vh, 1.15rem); }
+.sg-overlay-title { font-size: clamp(1.2rem, 3.6vh, 2rem); }
+.sg-overlay .btn.big { padding: clamp(8px, 1.6vh, 15px) clamp(18px, 2.4vw, 32px); }
+.sg-countdown { font-size: clamp(3rem, 14vh, 9rem); }
+.sg-toast { font-size: clamp(.85rem, 2vh, 1.05rem); }
+
+/* very short viewports (1280x720 with browser chrome ~600px tall) */
+@media (max-height: 640px) {
+  .sg-plaque-label { display: none; }
+  .sg-band { min-height: clamp(80px, 16vh, 120px); }
+}
+
+/* phones / narrow windows: stack and let the page scroll as before */
+@media (max-width: 900px) {
+  .app.screen-stage { height: auto; overflow: visible; }
+  .sg-duo, .sg-solo { container-type: normal; flex-direction: column; align-items: stretch; }
+  .sg-cell-film, .sg-cell-cam, .sg-cell-solo { width: 100%; }
+  .sg-solo .sg-roster { width: 100%; max-height: none; }
+  .sg-plaques { flex-wrap: wrap; }
+  .sg-plaque { min-width: 150px; }
+  .sg-title { white-space: normal; }
 }
