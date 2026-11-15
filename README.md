@@ -101,10 +101,10 @@ ElevenLabs is both the gods' ears (live scoring) and the game's whole soundscape
 
 **Live, every take**
 - **Speech to Text (Scribe v2) with keyterms**: transcribes each performance with word-level timestamps. Each scene's
-  character names and distinctive words are sent as keyterms, so names like *Antinous*, *Noman* and *Eurylochus* are
-  heard correctly (v2 fixed "the doors are locked" to the real line "the door's unlocked"). Athena scores line
-  accuracy from it; Apollo scores whether each line lands on cue and at the right pace. Falls back to Scribe v1, then
-  to local Whisper if the network is down.
+  proper names (*Antinous*, *Noman*, *Eurylochus*, *Telemachus*...) are sent as keyterms so they're heard correctly;
+  ordinary script words are deliberately *not* sent, so the transcript can't be nudged toward lines nobody said.
+  Athena scores line accuracy from it; Apollo scores whether each line lands on cue and at the right pace. Falls back
+  to Scribe v1, then to local Whisper if the network is down.
 
 **Generated once and shipped with the game** (`tools/gen_audio_assets.py`, `preprocess/voice_scene.py`)
 - **Voice Design**: six original character voices designed from text descriptions (an ancient bard, Odysseus,
