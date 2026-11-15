@@ -37,6 +37,8 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
   return (
     <div className="panel verdict">
       <p className="eyebrow center">{result.scene_title} · {result.team_name}</p>
+      {/* On laptops the wreath and Zeus's verdict sit side by side (see .verdict-hero) */}
+      <div className="verdict-hero">
       <div className="kleos-block">
         <div className="wreath">
           <Laurel className="laurel" />
@@ -47,6 +49,12 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
         </div>
         <div className="rank">{result.rank}</div>
         {result.verdict.epithet && <div className="epithet">“{result.team_name}, {result.verdict.epithet}”</div>}
+      </div>
+
+      <div className={`zeus ${revealed >= GODS.length ? 'in' : ''}`}>
+        <div className="zeus-head"><Bolt className="zeus-icon" /> The verdict of Zeus</div>
+        <p>{result.verdict.zeus}</p>
+      </div>
       </div>
 
       <Meander />
@@ -77,11 +85,6 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
             </div>
           )
         })}
-      </div>
-
-      <div className={`zeus ${revealed >= GODS.length ? 'in' : ''}`}>
-        <div className="zeus-head"><Bolt className="zeus-icon" /> The verdict of Zeus</div>
-        <p>{result.verdict.zeus}</p>
       </div>
 
       {result.stars?.length > 0 && (
@@ -121,7 +124,7 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
         <p className="muted small">Commentary by {result.verdict.source === 'gemini' ? 'Gemini' : 'the house oracle'}.</p>
       </details>
 
-      <div className="row center-row">
+      <div className="row center-row verdict-actions">
         <button className="btn" onClick={onRetry}>↻ Try again</button>
         <button className="btn ghost" onClick={onNew}>New trial</button>
         <button className="btn ghost" onClick={onHall}>Hall of Heroes</button>
