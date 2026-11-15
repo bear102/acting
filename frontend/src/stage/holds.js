@@ -34,3 +34,12 @@ export function shotHolds(shots, assignments, duration) {
   }
   return out
 }
+
+// On/off setting for the holds, remembered in this browser (on by default).
+const PREF_KEY = 'trials.shotPauses'
+export function readHoldsPref() {
+  try { return localStorage.getItem(PREF_KEY) !== '0' } catch { return true }
+}
+export function writeHoldsPref(on) {
+  try { localStorage.setItem(PREF_KEY, on ? '1' : '0') } catch { /* storage blocked */ }
+}

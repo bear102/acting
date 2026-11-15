@@ -7,7 +7,7 @@ import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
 import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
 import Roster from '../stage/Roster.jsx'
-import { HOLD_MS, shotHolds } from '../stage/holds.js'
+import { HOLD_MS, readHoldsPref, shotHolds, writeHoldsPref } from '../stage/holds.js'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
 import '../stage/stage.css'
@@ -24,6 +24,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
   const [hold, setHold] = useState(null) // { player, character, left } while the take is held at a cut
+  const [pauses, setPauses] = useState(readHoldsPref) // hold at shot changes (setting, remembered)
+  const canPause = shotHolds(scene.reference?.shots, team.assignments, scene.duration).length > 0
+  const togglePauses = () => setPauses((on) => { writeHoldsPref(!on); return !on })
   const fullscreen = useFullscreen()
 
   const nPlayers = team.players.length
@@ -395,7 +398,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration)
+    L.holds = pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration) : []
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -574,6 +577,14 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         </div>
         <div className="sg-head-right">
           {isLive && <div className="sg-rec"><span className="sg-rec-dot" /> {t.toFixed(1)}s / {scene.duration}s</div>}
+          {canPause && !isLive && phase !== 'sending' && (
+            // Setting: pause the take at each shot change so players can get ready (stage/holds.js)
+            <button type="button" className={`btn ghost sg-small-btn sg-pause-btn ${pauses ? 'on' : ''}`} role="switch"
+              aria-checked={pauses} onClick={togglePauses}
+              title={pauses ? 'The scene pauses at each shot change so you can get ready. Click to turn off.' : 'Turn on pauses at each shot change'}>
+              {pauses ? '⏸ Pauses on' : '▶ No pauses'}
+            </button>
+          )}
           {fullscreen.supported && (
             <button type="button" className="btn ghost sg-small-btn sg-fs-btn" onClick={fullscreen.toggle}
               title={fullscreen.on ? 'Exit fullscreen (Esc)' : 'Fill the screen: best for laptops'}>
