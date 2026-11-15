@@ -6,6 +6,7 @@ import { NUMERALS } from './setup/constants.js'
 import { Difficulty, HelmetIcon, HourglassIcon } from './setup/icons.jsx'
 import './setup/setup.css'
 import './setup/scene-select.css'
+import { SCENE_ART } from './setup/sceneArt.js'
 
 // The Cyclops's single eye, for the cave scene
 function CyclopsEye({ className = '' }) {
@@ -24,6 +25,7 @@ const SCENE_EMBLEMS = {
   'i-am-odysseus': Ship, 'my-name-is-noman': CyclopsEye, 'bound-to-the-mast': Lyre, 'secret-of-the-bed': Rose,
 }
 const EMBLEMS = [Trident, Owl, Helmet, Ship, Lyre, Rose]
+
 
 export default function SceneSelect({ onPick, onBack }) {
   const [scenes, setScenes] = useState(null)
@@ -89,6 +91,9 @@ function SceneCard({ s, n, emblem: Emblem, on, onHover, onPick }) {
             <span className="sx-ribbon">From the film</span>
             <span className="sx-play" aria-hidden="true">▶</span>
           </>
+        ) : SCENE_ART[s.id] ? (
+          <img className="sx-illo" src={SCENE_ART[s.id]} alt="" width="1200" height="896"
+            loading="lazy" decoding="async" />
         ) : (
           <Emblem className="sx-emblem" />
         )}

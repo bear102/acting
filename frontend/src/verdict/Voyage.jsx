@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Bolt, Ship } from '../ui/Art.jsx'
+import { rankArt } from '../ui/rankArt.js'
 
 // The sea road from Circe's sty to Olympus. Kleos 0-1000 maps to distance along it.
 const ROAD = 'M50 178 C 150 110, 235 232, 345 172 S 520 92, 610 150 S 760 222, 850 128 S 925 66, 955 84'
@@ -71,9 +72,16 @@ export default function Voyage({ voyage, onArrive }) {
       </svg>
 
       <div className="vy-score">
-        <div className="vy-num">{shown}</div>
-        <div className="vy-label">kleos</div>
-        <div className={`vy-rank ${arrived ? 'in' : ''}`}>{voyage.rank}</div>
+        {rankArt(voyage.rank) && (
+          /* Badge of the rank reached; loads eagerly (above the fold), revealed when the ship lands */
+          <img className={`vy-badge ${arrived ? 'in' : ''}`} src={rankArt(voyage.rank)} alt=""
+            width="384" height="384" decoding="async" />
+        )}
+        <div className="vy-count">
+          <div className="vy-num">{shown}</div>
+          <div className="vy-label">kleos</div>
+          <div className={`vy-rank ${arrived ? 'in' : ''}`}>{voyage.rank}</div>
+        </div>
       </div>
     </div>
   )

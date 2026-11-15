@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../playerColors.js'
-import { GOD_ART } from '../ui/Art.jsx'
+import { godArt } from '../ui/rankArt.js'
 import Voyage from '../verdict/Voyage.jsx'
 import Reel from '../verdict/Reel.jsx'
 import '../theme/verdict.css'
@@ -68,7 +68,6 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall, 
       <div className="vd-gods">
         {GODS.map((g, i) => {
           const score = result.judges[g.key]?.score ?? 0
-          const Art = GOD_ART[g.key]
           return (
             <div key={g.key} className={`vd-god ${arrived ? 'in' : ''}`} style={{ '--i': i }}>
               <div className="vd-ring">
@@ -77,9 +76,11 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall, 
                   <circle className="fill" cx="40" cy="40" r="34" strokeDasharray={RING}
                     strokeDashoffset={arrived ? RING * (1 - score / 100) : RING} />
                 </svg>
+                <img className="vd-god-medal" src={godArt(g.key)} alt="" width="384" height="384"
+                  loading="lazy" decoding="async" />
                 <span className="vd-ring-num">{score}</span>
               </div>
-              <div className="vd-god-name"><Art className="vd-god-art" /> {g.name}</div>
+              <div className="vd-god-name">{g.name}</div>
               <div className="vd-god-domain">{g.domain}</div>
               {verdict[g.key] && <p className="vd-zinger">“{verdict[g.key]}”</p>}
             </div>
