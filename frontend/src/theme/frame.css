@@ -71,11 +71,14 @@
 .of-volute path:first-of-type, .of-volute path:nth-of-type(2) { transform-origin: center; }
 
 /* gentle shimmer on the corner capitals */
-.of-full .of-corner { animation: of-glint 6s ease-in-out infinite; }
-.of-full .of-tr { animation-delay: 1.5s; }
-.of-full .of-br { animation-delay: 3s; }
-.of-full .of-bl { animation-delay: 4.5s; }
-@keyframes of-glint { 50% { filter: drop-shadow(0 0 14px rgba(243, 213, 140, .6)); } }
+/* (opacity on a pre-drawn glow: animating filter re-rasterised the corners every frame) */
+.of-corner::after { content: ''; position: absolute; inset: -30%; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(243, 213, 140, .38), transparent 62%); }
+.of-full .of-corner::after { animation: of-glint 6s ease-in-out infinite; }
+.of-full .of-tr::after { animation-delay: 1.5s; }
+.of-full .of-br::after { animation-delay: 3s; }
+.of-full .of-bl::after { animation-delay: 4.5s; }
+@keyframes of-glint { 50% { opacity: 1; } }
 
 /* Large monitors: a touch more presence */
 @media (min-width: 1700px) {
@@ -95,5 +98,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .of-band::before, .of-corner { animation: none !important; }
+  .of-band::before, .of-corner, .of-corner::after { animation: none !important; }
 }

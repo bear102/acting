@@ -10,9 +10,7 @@
 
 @keyframes ss-rise { from { opacity: 0; transform: translateY(14px); } }
 @keyframes ss-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-@keyframes ss-dash { to { stroke-dashoffset: -40; } }
 @keyframes ss-flicker { 0%, 100% { transform: scaleY(1) translateY(0); } 30% { transform: scaleY(1.08) translateY(-1px); } 60% { transform: scaleY(.95); } }
-@keyframes ss-bob { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-3px) rotate(1deg); } }
 
 /* --------------------------------------------------------------- voyage chart */
 .ss-map-wrap {
@@ -29,20 +27,22 @@
 .ss-isle-deco { fill: #2a2a2a; fill-opacity: .55; stroke: var(--gold); stroke-opacity: .25; stroke-width: 1.5; }
 .ss-ithaca path { fill: var(--clay-dark, #8f3f1f); stroke: var(--gold-soft); stroke-width: 1.5; opacity: .9; }
 .ss-ithaca text { fill: var(--gold-soft); font: 700 15px 'Cinzel', serif; letter-spacing: .2em; }
-.ss-serpent { fill: none; stroke: var(--terracotta); stroke-width: 4; stroke-linecap: round; opacity: .55; animation: ss-bob 4s ease-in-out infinite; }
+/* Map decorations are static on purpose: animating elements INSIDE an <svg> (no compositor
+   layers there) repainted and re-laid-out the whole scene-select page every frame. */
+.ss-serpent { fill: none; stroke: var(--terracotta); stroke-width: 4; stroke-linecap: round; opacity: .55; }
 .ss-serpent circle { fill: var(--gold); stroke: none; }
 .ss-compass circle { fill: none; stroke: var(--gold); stroke-opacity: .45; stroke-width: 1.5; }
 .ss-compass path { fill: var(--gold); fill-opacity: .6; }
 .ss-compass text { fill: var(--gold-soft); font: 700 13px 'Cinzel', serif; }
-.ss-route { fill: none; stroke: var(--gold-soft); stroke-width: 3; stroke-dasharray: 2 12; stroke-linecap: round; opacity: .8; animation: ss-dash 3s linear infinite; }
+.ss-route { fill: none; stroke: var(--gold-soft); stroke-width: 3; stroke-dasharray: 2 12; stroke-linecap: round; opacity: .8; }
 .ss-route.faint { opacity: .35; }
-.ss-map-ship { color: var(--marble); opacity: .85; animation: ss-bob 3.5s ease-in-out infinite; }
+.ss-map-ship { color: var(--marble); opacity: .85; }
 
 .ss-wp { cursor: pointer; outline: none; }
 .ss-wp-isle { fill: var(--clay, #c8693c); stroke: var(--gold-deep, #a8772a); stroke-width: 2; transition: fill .2s; }
 .ss-wp-ring { fill: var(--sea-deep); stroke: var(--gold); stroke-width: 3; transition: r .2s, stroke .2s; }
 .ss-wp-num { fill: var(--gold-soft); font: 700 15px 'Cinzel', serif; pointer-events: none; }
-.ss-wp-film { fill: var(--gold); font-size: 18px; animation: ss-pulse 2s infinite; }
+.ss-wp-film { fill: var(--gold); font-size: 18px; }
 .ss-wp-label {
   fill: var(--marble); font: 700 17px 'Cinzel', serif; letter-spacing: .03em;
   paint-order: stroke; stroke: var(--sea-deep); stroke-width: 5px; stroke-linejoin: round;

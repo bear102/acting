@@ -108,11 +108,28 @@ async function trace(cdp, ms) {
   }
 }
 
-async function idle(page, cdp, name) {
+async function idle(page, cdp, name, { keepMouse = false } = {}) {
+  if (!keepMouse) await page.mouse.move(3, 3) // don't let a hover (e.g. film poster playing) pollute the idle numbers
   await page.waitForTimeout(1500) // let entrance animations finish
   await page.evaluate(() => { window.__lt = []; window.__frames = 0 })
   const a = await metrics(cdp)
+  const profiling = process.env.PROFILE === name
+  if (profiling) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.start') }
   const tr = await trace(cdp, IDLE_MS)
+  if (profiling) {
+    // PROFILE=<screen>: print the top self-time functions in that idle window
+    const { profile } = await cdp.send('Profiler.stop')
+    const self = new Map()
+    const dtUs = profile.timeDeltas
+    const byId = new Map(profile.nodes.map((n) => [n.id, n]))
+    profile.samples.forEach((id, i) => {
+      const f = byId.get(id).callFrame
+      const key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber}`
+      self.set(key, (self.get(key) || 0) + (dtUs[i] || 0))
+    })
+    console.log(`    top self time in ${name}:`)
+    ;[...self].sort((x, y) => y[1] - x[1]).slice(0, 12).forEach(([k, us]) => console.log(`      ${(us / 1000).toFixed(0).padStart(6)} ms  ${k}`))
+  }
   const b = await metrics(cdp)
   const dt = (b.Timestamp - a.Timestamp)
   const pg = await page.evaluate(() => ({ lt: window.__lt, frames: window.__frames }))
@@ -127,6 +144,20 @@ async function idle(page, cdp, name) {
     heapMB: +(b.JSHeapUsedSize / 1048576).toFixed(1),
   }
   console.log(Object.values(row).map((v) => String(v).padEnd(10)).join(''))
+  // Running infinite animations that the compositor can't take (they cost main-thread work every frame)
+  row.mainThreadAnimations = await page.evaluate(() => {
+    const ok = new Set(['transform', 'opacity', 'translate', 'rotate', 'scale', 'offset', 'computedOffset', 'easing', 'composite'])
+    return [...new Set(document.getAnimations()
+      .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity)
+      .map((a) => {
+        const props = [...new Set(a.effect.getKeyframes().flatMap((k) => Object.keys(k)))].filter((p) => !ok.has(p))
+        if (!props.length) return null
+        const t = a.effect.target
+        const cls = (t?.getAttribute?.('class') || t?.tagName || '?').split(' ')[0]
+        return `${a.animationName || 'anim'}(${props.join(',')})@${cls}${a.effect.pseudoElement || ''}`
+      }).filter(Boolean))]
+  })
+  if (row.mainThreadAnimations.length) console.log('    main-thread anims:', row.mainThreadAnimations.join('  '))
   return row
 }
 
@@ -172,7 +203,7 @@ rows.push(await idle(page, cdp, 'scenes'))
 const filmCard = page.locator('.ss-film').first()
 if (await filmCard.count()) {
   await filmCard.hover()
-  rows.push(await idle(page, cdp, 'scenes-hover'))
+  rows.push(await idle(page, cdp, 'scenes-hover', { keepMouse: true }))
   await filmCard.click()
 } else {
   await page.locator('button').filter({ hasText: film.title }).first().click()
