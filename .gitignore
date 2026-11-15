@@ -24,3 +24,6 @@ scenes/media/*
 # agent worktrees
 .claude/
 !backend/tests/fixtures/*.webm
+
+# raw generated images (processed copies live in frontend/public/art/generated)
+added/
