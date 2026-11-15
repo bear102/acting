@@ -1,6 +1,8 @@
 import { PLAYER_COLORS } from '../vision.js'
+import { chunkWords } from './chunks.js'
 
-// Karaoke teleprompter. Nothing but the words, as big as they fit: the whole text area takes the
+// Karaoke teleprompter. Nothing but the words, as big as they fit, one short chunk of a long line at
+// a time so the band never changes height. The whole text area takes the
 // colour of the player whose line it is (the same colour as their spotlight and plaque), so nobody
 // has to read a name to know who is up. In the last two seconds before a line, a disc in the next
 // speaker's colour shows their player number, its ring draining as the line comes up.
@@ -39,14 +41,21 @@ function Countdown({ lead, color, num }) {
 }
 
 // live: the line is being spoken now, so words light up as time passes. Otherwise it is the
-// upcoming line, shown whole and dimmer in its speaker's colour.
+// upcoming line, dimmer in its speaker's colour. A long line shows one chunk at a time (chunks.js):
+// the chunk being spoken, or the first one while the line is still coming up.
 function Line({ line, t, live }) {
   const words = line.text.split(' ')
   const frac = Math.max(0, Math.min(1, (t - line.start) / Math.max(0.1, line.end - line.start)))
-  const lit = Math.round(frac * words.length)
+  const lit = live ? Math.round(frac * words.length) : 0
+  const chunks = chunkWords(words)
+  let k = 0 // the chunk being spoken
+  let first = 0 // index of its first word
+  while (k < chunks.length - 1 && lit >= first + chunks[k].length) first += chunks[k++].length
+  const shown = chunks[k]
   return (
-    <div className="sg-words">
-      {words.map((w, i) => <span key={i} className={live && i < lit ? 'lit' : ''}>{w} </span>)}
+    // keyed by chunk so each new chunk fades in
+    <div className="sg-words" key={first}>
+      {shown.map((w, i) => <span key={i} className={live && first + i < lit ? 'lit' : ''}>{w} </span>)}
     </div>
   )
 }
