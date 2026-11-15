@@ -1,11 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react'
 
-// The film is heard by default. During the take it drops to a low volume: loud enough to follow
-// the rhythm of the scene, quiet enough that the players' own voices dominate the microphone (which
-// also runs the browser's echo cancellation against this tab's playback). The button mutes it.
+// The film is heard by default at full (default) loudness, before and during the take. The browser's
+// echo cancellation runs against this tab's playback; the button mutes it (e.g. if the speakers bleed
+// into the microphone and the film's own dialogue gets transcribed as the players' lines).
 const AUDIO_KEY = 'trials.filmMuted' // new key: an old "muted" choice from the previous default doesn't carry over
-const PREVIEW_VOLUME = 0.25
-const TAKE_VOLUME = 0.12
+const PREVIEW_VOLUME = 1
+const TAKE_VOLUME = 1
 
 function readPref() {
   try { return localStorage.getItem(AUDIO_KEY) !== '1' } catch { return true }
@@ -20,7 +20,7 @@ function writePref(on) {
 //   hold      -> parked on the first frame of the new shot (stage/holds.js)
 //   live      -> plays from t=0; small drift is absorbed by nudging playbackRate, big jumps seek
 //   sending   -> paused
-// Audible, at a low volume while live (see TAKE_VOLUME above).
+// Audible at full volume (see PREVIEW_VOLUME / TAKE_VOLUME above).
 // Memoized: its props are stable, so the stage's ~10 Hz re-renders never touch the film.
 export default memo(function FilmPanel({ src, getTime, getPhase }) {
   const ref = useRef(null)
