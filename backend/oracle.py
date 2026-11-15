@@ -111,6 +111,7 @@ Homeric register (epithets, "wine-dark", "rosy-fingered", etc.) but keep it punc
 SCENE: {title} ({book})
 TEAM: {team}
 CAST (player -> character): {cast}
+CHARACTER IDS: {char_ids}
 
 SCRIPT:
 {script}
@@ -133,41 +134,122 @@ Respond with JSON only:
   "apollo": "<one sentence from Apollo about the voice>",
   "ares": "<one sentence from Ares about movement>",
   "aphrodite": "<one sentence from Aphrodite about emotion>",
-  "zeus": "<Zeus's final verdict, 2-3 sentences, spoken aloud, references something concrete>",
-  "epithet": "<a Homeric epithet for the team, e.g. 'the Wine-Spilling Crew'>"
+  "zeus": "<Zeus's final verdict, 2-3 sentences, spoken aloud, references something concrete; do not quote numeric scores>",
+  "epithet": "<a Homeric epithet for the team, e.g. 'the Wine-Spilling Crew'>"{critic_schema}
 }}"""
+
+PAIRS_HINT = """The images come in PAIRS, in time order. Each "FILM" image is a still of the real actors
+from the film at that moment; the "PLAYERS" image right after it is the mortals' webcam at the same
+moment of their performance (mirrored, like a selfie). Compare them: facial expression, posture,
+gesture, energy and staging. Mention a concrete resemblance or difference you see."""
+
+SOLO_HINT = "Attached are snapshots from the performance - mention costumes, props, faces or poses you notice."
+
+CRITIC_SCHEMA = """,
+  "acting": {{"<character id>": {{"score": <0-10, how closely this player's acting resembles the film actor in the paired frames>, "why": "<max 15 words>"}}}},
+  "muse_bonus": <integer -5..5 for overall theatrical commitment: costume, props, energy, bravery>"""
+
+TEXT_KEYS = ("athena", "apollo", "ares", "aphrodite", "zeus")
+
+
+async def _gemini_generate(contents: list, key: str) -> str:
+    """One Gemini call returning the raw JSON text. Tests monkeypatch this."""
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=key)
+    resp = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        contents=contents,
+        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=1.0),
+    )
+    return resp.text
+
+
+def _image(data: bytes):
+    from google.genai import types
+
+    return types.Part.from_bytes(data=data, mime_type="image/jpeg")
+
+
+def build_contents(scene: dict, frames: list[bytes], pairs: list[dict] | None, prompt: str) -> list:
+    """Interleave labels and images: "FILM at t=X" still then "PLAYERS at t=X" snapshot, per moment."""
+    contents: list = []
+    if pairs:
+        for i, p in enumerate(pairs[: len(frames)]):
+            if p.get("film"):
+                who = _char_name(scene, p["character"]) if p.get("character") else "a wide shot"
+                label = f"FILM at t={p['t']:.1f}s - on screen: {who}"
+                if p.get("line"):
+                    label += f"; line being spoken: {p['line']}"
+                contents += [label, _image(p["film"])]
+            contents += [f"PLAYERS at t={p['t']:.1f}s", _image(frames[i])]
+    else:
+        contents += [_image(f) for f in frames[:4]]
+    contents.append(prompt)
+    return contents
+
+
+def parse_critic(data: dict, scene: dict) -> dict | None:
+    """Validate and clamp the side-by-side critique. None unless a known character got a numeric score."""
+    ids = {c["id"] for c in scene["characters"]}
+    acting = {}
+    raw = data.get("acting")
+    if isinstance(raw, dict):
+        for cid, v in raw.items():
+            if cid not in ids:
+                continue
+            score = v.get("score") if isinstance(v, dict) else v
+            try:
+                score = float(score)
+            except (TypeError, ValueError):
+                continue
+            if score != score:  # NaN
+                continue
+            why = v.get("why", "") if isinstance(v, dict) else ""
+            acting[cid] = {"score": round(max(0.0, min(10.0, score)), 1), "why": str(why)[:160]}
+    if not acting:
+        return None
+    try:
+        bonus = int(round(float(data.get("muse_bonus", 0))))
+    except (TypeError, ValueError):
+        bonus = 0
+    return {"acting": acting, "muse_bonus": max(-5, min(5, bonus)), "source": "gemini"}
 
 
 async def verdict(scene: dict, team: str, cast: str, heard: str, judges: dict,
-                  overall: dict, frames: list[bytes]) -> dict:
+                  overall: dict, frames: list[bytes], pairs: list[dict] | None = None) -> dict:
+    """The gods' commentary. Given film `pairs` (film_frames.film_pairs), Gemini also compares the
+    players with the film side by side; that lands in result["critic"] (None if unavailable/invalid)."""
     key = _gemini_key()
+    has_pairs = bool(pairs and frames and any(p.get("film") for p in pairs))
     if key:
         try:
-            from google import genai
-            from google.genai import types
-
             script = "\n".join(f"{l['character'].upper()}: {l['text']}" for l in scene["lines"])
             prompt = PROMPT.format(
                 title=scene["title"], book=scene.get("book", ""), team=team, cast=cast,
+                char_ids=", ".join(c["id"] for c in scene["characters"]),
                 script=script, heard=heard or "(nothing intelligible)", overall=overall,
-                frames_hint=("Attached are snapshots from the performance - mention costumes, "
-                             "props, faces or poses you notice." if frames else ""),
+                frames_hint=PAIRS_HINT if has_pairs else (SOLO_HINT if frames else ""),
+                critic_schema=CRITIC_SCHEMA if has_pairs else "",
                 **judges,
             )
-            parts = [types.Part.from_bytes(data=f, mime_type="image/jpeg") for f in frames[:4]]
-            client = genai.Client(api_key=key)
-            resp = await client.aio.models.generate_content(
-                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-                contents=[*parts, prompt],
-                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=1.0),
-            )
-            data = json.loads(resp.text)
-            if all(k in data for k in ("athena", "apollo", "ares", "aphrodite", "zeus")):
-                data["source"] = "gemini"
-                return data
+            contents = build_contents(scene, frames, pairs if has_pairs else None, prompt)
+            data = json.loads(await _gemini_generate(contents, key))
+            if isinstance(data, dict) and all(isinstance(data.get(k), str) and data[k] for k in TEXT_KEYS):
+                out = {k: data[k] for k in TEXT_KEYS}
+                out["epithet"] = str(data.get("epithet") or "")[:80] or None
+                out["source"] = "gemini"
+                out["critic"] = parse_critic(data, scene) if has_pairs else None
+                return out
+            log.warning("Gemini verdict missing keys; using fallback")
         except Exception as e:  # noqa: BLE001
             log.warning("Gemini verdict failed: %s", e)
-    return _fallback(judges, overall)
+    return {**_fallback(judges, overall), "critic": None}
+
+
+def _char_name(scene: dict, cid: str) -> str:
+    return next((c["name"] for c in scene["characters"] if c["id"] == cid), cid)
 
 
 def _fallback(judges: dict, overall: dict) -> dict:
