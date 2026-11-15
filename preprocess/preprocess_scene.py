@@ -151,17 +151,20 @@ def shot_at(shots: list[dict], t: float) -> dict | None:
 # --------------------------------------------------------------------------- tracking
 
 def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[dict, dict, float]:
-    """For every 0.1 s, give the on-screen character the largest pose and largest face; others None."""
+    """For every 0.1 s, give the on-screen character the largest face and the pose whose nose sits on it
+    (largest pose only when no face is found); others None."""
     import cv2
     import mediapipe as mp
     from mediapipe.tasks.python import BaseOptions, vision
 
     pose = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=str(MODELS / "pose_landmarker_lite.task")),
+        base_options=BaseOptions(model_asset_path=str(MODELS / ("pose_landmarker_full.task" if (MODELS / "pose_landmarker_full.task").exists() else "pose_landmarker_lite.task"))),
         running_mode=vision.RunningMode.VIDEO, num_poses=4))
     face = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(MODELS / "face_landmarker.task")),
-        running_mode=vision.RunningMode.VIDEO, num_faces=4, output_face_blendshapes=True))
+        running_mode=vision.RunningMode.VIDEO, num_faces=4, output_face_blendshapes=True,
+        # film faces are often small and dark (over-the-shoulder shots); the 0.5 defaults miss them
+        min_face_detection_confidence=0.3, min_face_presence_confidence=0.3, min_tracking_confidence=0.3))
 
     cap = cv2.VideoCapture(str(path))
     fps = cap.get(cv2.CAP_PROP_FPS) or 24
@@ -189,18 +192,35 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
             ts = int(t * 1000)
             pr = pose.detect_for_video(img, ts)
             fr = face.detect_for_video(img, ts)
-            if pr.pose_landmarks:
-                p = max(pr.pose_landmarks, key=lambda lm: abs(lm[11].x - lm[12].x) + abs(lm[11].y - lm[12].y))
-                poses[char][k] = [round(v, 3) if j < 2 else round(v, 2)
-                                  for i in POSE_INDICES
-                                  for j, v in enumerate((p[i].x, p[i].y, p[i].visibility or 0.0))]
+            # Anchor on the largest visible FACE: in over-the-shoulder shots the foreground actor's
+            # back is the biggest body, but only the on-screen character shows a face.
+            fi, fc = None, None
             if fr.face_landmarks:
-                def area(lm):
+                def fbox(lm):
                     xs, ys = [q.x for q in lm], [q.y for q in lm]
-                    return (max(xs) - min(xs)) * (max(ys) - min(ys))
-                fi = max(range(len(fr.face_landmarks)), key=lambda i: area(fr.face_landmarks[i]))
+                    return (max(xs) - min(xs)) * (max(ys) - min(ys)), ((max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2), max(xs) - min(xs)
+                fi = max(range(len(fr.face_landmarks)), key=lambda i: fbox(fr.face_landmarks[i])[0])
+                _, fc, fw = fbox(fr.face_landmarks[fi])
                 by = {c.category_name: c.score for c in fr.face_blendshapes[fi]}
                 faces[char][k] = [round(by.get(b, 0.0), 3) for b in BLENDSHAPES]
+            if pr.pose_landmarks:
+                p = None
+                if fc is not None:
+                    d = lambda lm: ((lm[0].x - fc[0]) ** 2 + (lm[0].y - fc[1]) ** 2) ** 0.5
+                    cand = min(pr.pose_landmarks, key=d)
+                    if d(cand) <= max(0.12, 1.5 * fw):   # nose must sit on that face
+                        p = cand
+                if p is None and fc is None:
+                    # No face: prefer bodies whose shoulders are fully in frame. A foreground actor's
+                    # back in an over-the-shoulder shot is the biggest body but runs off the frame edge.
+                    inside = [lm for lm in pr.pose_landmarks
+                              if all(0.03 < lm[i].x < 0.97 and 0.0 < lm[i].y < 1.0 for i in (11, 12))]
+                    p = max(inside or pr.pose_landmarks,
+                            key=lambda lm: abs(lm[11].x - lm[12].x) + abs(lm[11].y - lm[12].y))
+                if p is not None:
+                    poses[char][k] = [round(v, 3) if j < 2 else round(v, 2)
+                                      for i in POSE_INDICES
+                                      for j, v in enumerate((p[i].x, p[i].y, p[i].visibility or 0.0))]
         k += 1
         if k % 50 == 0:
             print(f"  tracked {t:.0f}s / {duration:.0f}s", flush=True)

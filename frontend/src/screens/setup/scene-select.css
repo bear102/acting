@@ -173,3 +173,20 @@
 @keyframes sx-start { 50% { box-shadow: 0 0 0 3px rgba(232, 184, 74, .6), 0 0 36px rgba(232, 184, 74, .35); } }
 .sx-wp.start .sx-wp-ring { animation: sx-start-ring 2.6s ease-in-out infinite; }
 @keyframes sx-start-ring { 50% { stroke: var(--gold-soft); stroke-width: 5.5; } }
+
+/* ------------------------------------------------------------ many trials (> 7): grouped, compact */
+.sx-many { min-height: 0; justify-content: flex-start; }
+.sx-many .sx-map-wrap { flex: none; height: clamp(96px, 16vh, 150px); max-height: none; min-height: 0; }
+.sx-group { display: flex; flex-direction: column; gap: 10px; }
+.sx-group-title {
+  margin: 0; display: flex; align-items: center; gap: 10px;
+  font: 700 .8rem 'Cinzel', serif; letter-spacing: .24em; text-transform: uppercase; color: var(--gold-soft);
+}
+.sx-group-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(232, 184, 74, .5), transparent); }
+.sx-group-title span {
+  font: 600 .7rem 'EB Garamond', serif; letter-spacing: 0; color: var(--muted);
+  border: 1px solid rgba(232, 184, 74, .35); border-radius: 999px; padding: 0 8px;
+}
+.sx-many .sx-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+.sx-many .sx-art { height: clamp(84px, 15vh, 150px); }
+.sx-many .sx-body { padding: 10px 12px 12px; }
