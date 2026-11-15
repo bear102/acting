@@ -1,21 +1,25 @@
 import { memo, useEffect, useRef, useState } from 'react'
 
-const AUDIO_KEY = 'trials.hearFilm'
-const FILM_VOLUME = 0.25
+// The film is heard by default. During the take it drops to a low volume: loud enough to follow
+// the rhythm of the scene, quiet enough that the players' own voices dominate the microphone (which
+// also runs the browser's echo cancellation against this tab's playback). The button mutes it.
+const AUDIO_KEY = 'trials.filmMuted' // new key: an old "muted" choice from the previous default doesn't carry over
+const PREVIEW_VOLUME = 0.25
+const TAKE_VOLUME = 0.12
 
 function readPref() {
-  try { return localStorage.getItem(AUDIO_KEY) === '1' } catch { return false }
+  try { return localStorage.getItem(AUDIO_KEY) !== '1' } catch { return true }
 }
 function writePref(on) {
-  try { localStorage.setItem(AUDIO_KEY, on ? '1' : '0') } catch { /* storage blocked */ }
+  try { localStorage.setItem(AUDIO_KEY, on ? '0' : '1') } catch { /* storage blocked */ }
 }
 
 // The film clip the players imitate, slaved to the stage clock:
-//   ready     -> loops silently for study (getTime returns a looping preview clock)
+//   ready     -> loops for study (getTime returns a looping preview clock)
 //   countdown -> parked on frame 0
 //   live      -> plays from t=0; small drift is absorbed by nudging playbackRate, big jumps seek
 //   sending   -> paused
-// Muted by default so the film's dialogue doesn't leak into the microphone recording.
+// Audible, at a low volume while live (see TAKE_VOLUME above).
 // Memoized: its props are stable, so the stage's ~10 Hz re-renders never touch the film.
 export default memo(function FilmPanel({ src, getTime, getPhase }) {
   const ref = useRef(null)
@@ -26,7 +30,6 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
     const v = ref.current
     if (!v) return
     v.muted = !hear
-    v.volume = FILM_VOLUME
   }, [hear])
 
   useEffect(() => {
@@ -35,6 +38,8 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       if (!v || !v.duration) return
       const phase = getPhase()
       const t = getTime()
+      const vol = phase === 'live' ? TAKE_VOLUME : PREVIEW_VOLUME
+      if (Math.abs(v.volume - vol) > 0.001) v.volume = vol
       if (phase === 'sending' || phase === 'loading' || t == null) {
         if (!v.paused) v.pause()
         return
@@ -72,7 +77,7 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
     setHear(on)
     writePref(on)
     const v = ref.current
-    if (v) { v.muted = !on; v.volume = FILM_VOLUME }
+    if (v) v.muted = !on
   }
 
   return (
@@ -84,8 +89,8 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
         <figcaption className="sg-film-cap">
           <span className="sg-film-label"><span>✦</span> The Shades of the Past <span>✦</span></span>
           <button type="button" className={`sg-hear ${hear ? 'on' : ''}`} onClick={toggle}
-            aria-label={hear ? 'Mute the film' : 'Hear the film (use headphones)'}
-            title="The film's audio is muted so it doesn't leak into your microphone. Use headphones if you turn it on.">
+            aria-label={hear ? 'Mute the film' : 'Hear the film'}
+            title={hear ? 'Mute the film (it plays quietly during your take)' : 'Hear the film'}>
             {hear ? '🔊' : '🔈'}<span className="sg-hear-text">{hear ? ' Film audio on' : ' Hear the film'}</span>
           </button>
         </figcaption>
