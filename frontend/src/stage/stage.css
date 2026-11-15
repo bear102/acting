@@ -326,3 +326,14 @@ body.stage-live .bd-torch { display: none; }
 @media (max-width: 900px) {
   .sg-cell-film { width: 100%; }
 }
+
+/* Shot-change hold: a big countdown over the camera; the on-screen player's disc is lit, the rest
+   fade out (they step out of frame). */
+.sg-hold { gap: clamp(8px, 2vh, 18px); }
+.sg-hold-count {
+  font: 900 clamp(2.6rem, 10vh, 5rem) 'Cinzel', serif; line-height: 1; color: var(--gold-soft);
+  text-shadow: 0 0 24px rgba(232, 184, 74, .6); animation: sg-hold-tick 1s ease-out both;
+}
+@keyframes sg-hold-tick { from { transform: scale(1.35); opacity: .4; } }
+.sg-place.away { opacity: .3; filter: grayscale(.6); transform: scale(.85); transition: opacity .25s, transform .25s; }
+@media (prefers-reduced-motion: reduce) { .sg-hold-count { animation: none; } }
