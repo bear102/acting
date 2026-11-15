@@ -341,7 +341,9 @@ def judge_apollo(scene: dict, contours: dict, athena: dict, has_word_times: bool
     parts = {k: round(100 * float(np.mean(v))) for k, v in comp_sum.items()}
     best = max(lines_out, key=lambda x: x["score"]) if lines_out else None
     worst = min(lines_out, key=lambda x: x["score"]) if lines_out else None
-    what = "matched against the film actor's delivery, line by line" if has_ref else "judged on melody and dynamics, line by line"
+    film_ref = bool((scene.get("reference") or {}).get("audio"))
+    who = "the film actor's" if film_ref else "the voiced reference"
+    what = f"matched against {who} delivery, line by line" if has_ref else "judged on melody and dynamics, line by line"
     note = f"Voice {what}"
     if best and worst and best is not worst:
         note += f"; best \"{_clip(best['text'])}\" {best['score']}, worst \"{_clip(worst['text'])}\" {worst['score']}"
