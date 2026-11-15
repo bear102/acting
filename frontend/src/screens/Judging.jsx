@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Bolt } from '../ui/Art.jsx'
 import { godArt } from '../ui/rankArt.js'
 import '../theme/judging.css'
 
@@ -38,7 +37,7 @@ export default function Judging({ snaps = [] }) {
         <div className="oj-radiance" />
         <Cloud className="oj-cloud oj-cloud-l" />
         <Cloud className="oj-cloud oj-cloud-r" />
-        <Bolt className="oj-bolt" />
+        <img className="oj-bolt oj-zeus-medal" src={godArt('zeus')} alt="" width="384" height="384" decoding="async" />
         <div className="oj-flash" />
       </div>
 

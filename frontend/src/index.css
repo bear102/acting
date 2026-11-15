@@ -377,6 +377,7 @@ th { color: var(--gold-soft); font-size: .85rem; font-weight: 500; }
 .kleos { font: 700 1.2rem 'Cinzel', serif; color: var(--gold); }
 
 .err-art { width: 64px; height: 64px; color: var(--gold); }
+.err-poseidon { width: clamp(120px, 22vh, 180px); height: auto; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .55)); }
 
 /* ---------- responsive */
 @media (max-width: 860px) {

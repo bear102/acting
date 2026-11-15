@@ -15,7 +15,6 @@ import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
 import Backdrop from './ui/Backdrop.jsx'
 import Journey from './ui/Journey.jsx'
-import { Trident } from './ui/Art.jsx'
 import OdysseyFrame from './theme/OdysseyFrame.jsx'
 
 // Screen flow: home -> scenes -> team -> rehearse -> stage -> judging -> verdict
@@ -107,7 +106,7 @@ export default function App() {
       {screen === 'judging' && <Judging snaps={snaps} />}
       {screen === 'stage-error' && (
         <div className="panel center tablet">
-          <Trident className="err-art" />
+          <img className="err-art err-poseidon" src="/art/generated/poseidon.webp" alt="" width="384" height="384" />
           <h2>Poseidon swallowed your performance</h2>
           {lastTake && <p>Your take is safe.</p>}
           <div className="row center-row">
