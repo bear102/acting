@@ -1,6 +1,8 @@
 // Full-bleed animated night voyage behind the landing page. Original art, all SVG/CSS.
 // Layers (back to front): sky + stars + god constellations + moon + Olympus storm,
 // land (Cyclops mountain, Ithaca), then three sea bands with the ship and a sea serpent.
+// Small life on top: shooting stars, cloud wisps, rain under Olympus, gulls, hearth smoke and
+// torches on Ithaca, rowing oars and a wake, leaping dolphins, glints on the water.
 // Motion is transform/opacity only; mouse parallax writes CSS vars (no React re-render).
 import { useEffect, useRef } from 'react'
 import './landing.css'
@@ -41,7 +43,7 @@ function Constellation({ c, i }) {
     <g className="lp-const" style={{ '--i': i }}>
       {c.lines.map(([a, b], j) => {
         const [x1, y1] = P(c.stars[a]); const [x2, y2] = P(c.stars[b])
-        return <line key={j} x1={x1} y1={y1} x2={x2} y2={y2} />
+        return <line key={j} x1={x1} y1={y1} x2={x2} y2={y2} pathLength="1" style={{ '--j': j }} />
       })}
       {c.stars.map((s, j) => {
         const [x, y] = P(s)
@@ -63,6 +65,30 @@ const SEA = [
   { cls: 'lp-sea-mid', bg: waveTile('#16244a', '#9ab0dc', 9) },
   { cls: 'lp-sea-near', bg: waveTile('#0a1124', '#e8b84a', 12) },
 ]
+
+// Shooting stars: start point in sky units, and when in the shared 16s cycle each one falls.
+const METEORS = [
+  { x: 520, y: 70, delay: 3 },
+  { x: 1090, y: 40, delay: 9.5 },
+  { x: 250, y: 130, delay: 13 },
+]
+// Glints on the far water (% of the sea box), fixed so the scene never reshuffles.
+const GLINTS = (() => {
+  const r = rng(23)
+  return Array.from({ length: 14 }, () => ({ x: r() * 100, y: 6 + r() * 26, d: (r() * 5).toFixed(2) }))
+})()
+const RAIN = [84, 118, 150, 186, 214, 262, 296, 330, 362]
+
+// One cloud bank, drawn twice: the dark body and the lightning-lit copy that flashes over it.
+function CloudBank({ className }) {
+  return (
+    <g className={className}>
+      <circle cx="110" cy="96" r="44" /><circle cx="170" cy="70" r="58" /><circle cx="245" cy="62" r="64" />
+      <circle cx="315" cy="84" r="48" /><circle cx="360" cy="104" r="34" />
+      <rect x="70" y="96" width="320" height="44" rx="22" />
+    </g>
+  )
+}
 
 export default function LandingScene() {
   const root = useRef(null)
@@ -120,7 +146,25 @@ export default function LandingScene() {
             ))}
           </g>
           {CONSTELLATIONS.map((c, i) => <Constellation key={c.god} c={c} i={i} />)}
+          {METEORS.map((m, i) => (
+            <g key={i} transform={`translate(${m.x} ${m.y})`}>
+              <g className="lp-meteor" style={{ '--d': `${m.delay}s` }}>
+                <line x1="0" y1="0" x2="-110" y2="-42" />
+                <circle r="2.4" />
+              </g>
+            </g>
+          ))}
         </svg>
+      </div>
+
+      {/* ---------------- thin cloud wisps drifting across the moon */}
+      <div className="lp-par lp-wisps" style={{ '--d': 9 }}>
+        {[0, 1, 2].map((i) => (
+          <svg key={i} className="lp-wisp" style={{ '--i': i }} viewBox="0 0 400 60">
+            <ellipse cx="200" cy="32" rx="190" ry="9" /><ellipse cx="170" cy="20" rx="110" ry="8" />
+            <ellipse cx="250" cy="44" rx="120" ry="7" />
+          </svg>
+        ))}
       </div>
 
       {/* ---------------- moon */}
@@ -137,12 +181,12 @@ export default function LandingScene() {
       {/* ---------------- Olympus storm (top-left) */}
       <div className="lp-par lp-olympus" style={{ '--d': 8 }}>
         <svg viewBox="0 0 420 220">
-          <path className="lp-bolt" d="M232 120 L206 170 L226 170 L196 222 L258 150 L236 150 L256 120 Z" />
-          <g className="lp-cloud">
-            <circle cx="110" cy="96" r="44" /><circle cx="170" cy="70" r="58" /><circle cx="245" cy="62" r="64" />
-            <circle cx="315" cy="84" r="48" /><circle cx="360" cy="104" r="34" />
-            <rect x="70" y="96" width="320" height="44" rx="22" />
+          <g className="lp-rain">
+            {RAIN.map((x, i) => <line key={x} x1={x} y1="146" x2={x - 9} y2="172" style={{ '--i': i }} />)}
           </g>
+          <path className="lp-bolt" d="M232 120 L206 170 L226 170 L196 222 L258 150 L236 150 L256 120 Z" />
+          <CloudBank className="lp-cloud" />
+          <CloudBank className="lp-cloud-flash" />
           <g className="lp-cloud-rim">
             <path d="M70 100 Q72 54 116 52 Q122 16 172 14 Q200 -6 246 0 Q300 0 312 38 Q352 36 362 72 Q392 78 392 112" />
           </g>
@@ -159,7 +203,7 @@ export default function LandingScene() {
           <g className="lp-eye">
             <ellipse cx="233" cy="308" rx="22" ry="11" className="lp-eye-glow" />
             <ellipse cx="233" cy="308" rx="11" ry="5" className="lp-eye-core" />
-            <ellipse cx="233" cy="308" rx="2.2" ry="4.6" className="lp-eye-pupil" />
+            <g className="lp-eye-look"><ellipse cx="233" cy="308" rx="2.2" ry="4.6" className="lp-eye-pupil" /></g>
           </g>
           {/* Ithaca with its temple and a hearth light */}
           <path className="lp-hill-far" d="M1080 400 Q1150 320 1260 300 Q1360 270 1450 300 Q1540 320 1640 300 V400 Z" />
@@ -171,16 +215,49 @@ export default function LandingScene() {
             <rect x="-48" y="62" width="96" height="6" />
           </g>
           <circle className="lp-hearth" cx="1365" cy="318" r="4" />
+          <g className="lp-cypress">
+            {[[1268, 334, 1], [1284, 330, 1.25], [1446, 326, 1.2], [1464, 332, .95], [1520, 338, .8]].map(([x, y, k]) => (
+              <path key={x} transform={`translate(${x} ${y}) scale(${k})`} d="M0 0 Q-7 -22 0 -46 Q7 -22 0 0 Z" />
+            ))}
+          </g>
+          <g className="lp-smoke">
+            {[0, 1, 2, 3].map((i) => <circle key={i} cx="1392" cy="268" r="6" style={{ '--i': i }} />)}
+          </g>
+          {[1302, 1418].map((x) => (
+            <g key={x}>
+              <rect className="lp-torch-post" x={x - 1.5} y="318" width="3" height="14" />
+              <circle className="lp-torch-glow" cx={x} cy="315" r="11" />
+              <circle className="lp-hearth" cx={x} cy="315" r="3.2" style={{ animationDelay: `${x % 7 * -0.3}s` }} />
+            </g>
+          ))}
           <text className="lp-place" x="1360" y="246" textAnchor="middle">Ithaca</text>
         </svg>
+      </div>
+
+      {/* ---------------- gulls heading home ahead of the ship */}
+      <div className="lp-par lp-birds" style={{ '--d': 12 }}>
+        <div className="lp-flock">
+          {[[0, 0, 1], [34, 14, .8], [62, -6, .9], [22, 34, .7], [88, 22, .75]].map(([x, y, k], i) => (
+            <svg key={i} className="lp-gull" viewBox="0 0 24 10" style={{ left: x, top: y, width: 24 * k, '--i': i }}>
+              <path d="M1 7 Q6 0 12 6 Q18 0 23 7" />
+            </svg>
+          ))}
+        </div>
       </div>
 
       {/* ---------------- sea */}
       <div className="lp-par lp-sea" style={{ '--d': 20 }}>
         <div className={`lp-wave ${SEA[0].cls}`} style={{ backgroundImage: SEA[0].bg }} />
+        <div className="lp-glints">
+          {GLINTS.map((g, i) => <i key={i} style={{ left: `${g.x}%`, top: `${g.y}%`, '--d': `${g.d}s` }} />)}
+        </div>
         <div className="lp-moonpath">{Array.from({ length: 9 }, (_, i) => <i key={i} style={{ '--i': i }} />)}</div>
         <div className="lp-ship-lane">
           <div className="lp-ship-bob"><Galley /></div>
+        </div>
+        <div className="lp-dolphins">
+          <div className="lp-dolphin" style={{ '--i': 0 }}><Dolphin /></div>
+          <div className="lp-dolphin" style={{ '--i': 1 }}><Dolphin /></div>
         </div>
         <div className={`lp-wave ${SEA[1].cls}`} style={{ backgroundImage: SEA[1].bg }} />
         <div className="lp-serpent"><Serpent /></div>
@@ -209,8 +286,33 @@ function Galley() {
       <path d="M14 128 Q2 108 18 96 Q28 90 32 100 Q22 106 26 118 Z" fill="#0b0f1c" />
       <path d="M242 116 L256 136 L238 138 Z" fill="#0b0f1c" />
       <path d="M48 140 H210" stroke="#e8b84a" strokeWidth="2" opacity=".75" />
-      {[64, 86, 108, 130, 152, 174, 196].map((x) => <rect key={x} x={x} y="148" width="3" height="26" transform={`rotate(20 ${x} 148)`} fill="#0b0f1c" />)}
+      {/* oars pull together, each a beat behind the one ahead */}
+      {[64, 86, 108, 130, 152, 174, 196].map((x, i) => (
+        <g key={x} transform={`translate(${x} 148)`}>
+          <rect className="lp-oar" width="3" height="26" fill="#0b0f1c" style={{ '--i': i }} />
+        </g>
+      ))}
       <circle cx="222" cy="138" r="3.5" fill="#e8b84a" />
+      {/* stern lantern */}
+      <circle className="lp-lantern-glow" cx="20" cy="92" r="13" />
+      <circle className="lp-lantern" cx="20" cy="92" r="3" />
+      {/* wake trailing astern, spray at the ram */}
+      <g className="lp-wake">
+        {[0, 1, 2, 3].map((i) => <path key={i} d={`M${6 - i * 26} ${156 + (i % 2) * 5} q-9 -5 -18 0`} style={{ '--i': i }} />)}
+      </g>
+      <g className="lp-spray">
+        {[[250, 132], [258, 138], [254, 124]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2" style={{ '--i': i }} />)}
+      </g>
+    </svg>
+  )
+}
+
+function Dolphin() {
+  return (
+    <svg viewBox="-8 0 68 30">
+      <path d="M2 20 Q18 2 40 8 Q52 10 58 18 Q50 15 44 16 Q30 18 20 24 Q12 28 2 20 Z" />
+      <path d="M27 8 L33 0 L37 9 Z" />
+      <path d="M3 20 L-6 12 L-2 21 L-7 28 Z" />
     </svg>
   )
 }
