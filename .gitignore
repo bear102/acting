@@ -20,3 +20,6 @@ scenes/media/*
 *.webm
 
 .DS_Store
+
+# agent worktrees
+.claude/
