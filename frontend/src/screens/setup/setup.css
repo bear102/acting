@@ -303,3 +303,27 @@
 @media (prefers-reduced-motion: reduce) {
   .ss-screen *, .ss-screen *::before, .ss-screen *::after { animation: none !important; transition: none !important; }
 }
+
+/* --------------------------------------------------------------- laptop fit: scene select
+   On wide-but-short screens (1280x720 .. 1536x864) the chart sits beside the trial cards
+   and stays put while the list scrolls, so the first trial is visible without scrolling. */
+.ss-voyage-map, .ss-voyage-list { min-width: 0; }
+@media (min-width: 1100px) and (max-height: 900px) {
+  .app.screen-scenes { max-width: 1440px; }
+  .ss-voyage { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(360px, 1fr); gap: clamp(18px, 2.4vw, 36px); align-items: start; }
+  .ss-voyage-map { position: sticky; top: calc(var(--f, 0px) + 12px); }
+  .ss-voyage-map .ss-map-wrap { margin-top: 0; max-width: none; }
+  .ss-voyage-list .ss-section:first-child { margin-top: 0; }
+  .ss-voyage-list .ss-section:first-child .section-title { margin-top: 0; }
+  .ss-voyage-list .ss-grid.ss-film-grid { grid-template-columns: 1fr; }
+  /* film card goes horizontal here: poster left, story right, so it fits short screens */
+  .ss-voyage-list .ss-film { flex-direction: row; }
+  .ss-voyage-list .ss-poster { flex: none; width: 46%; aspect-ratio: auto; min-height: 100%; }
+  .ss-voyage-list .ss-poster::after { background: linear-gradient(270deg, #070b17 2%, transparent 45%); }
+  .ss-voyage-list .ss-film-body { margin-top: 0; padding: 14px 16px; }
+  .ss-voyage-list .ss-film .ss-title { font-size: clamp(1.05rem, 2.8vh, 1.35rem); }
+  .ss-voyage-list .ss-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 14px; }
+  .ss-head { margin-bottom: 10px; }
+  .ss-head h2 { font-size: clamp(1.4rem, 3.6vh, 1.9rem); }
+  .ss-lede { font-size: 1rem; }
+}
