@@ -1,11 +1,14 @@
-/* Top-right fullscreen toggle: inside the Odyssey frame, clear of its corner ornament */
+/* Top-right corner tools (sound, fullscreen): one row inside the Odyssey frame, clear of its corner ornament */
+.corner-tools {
+  position: fixed; z-index: 30; top: calc(var(--f, 21px) + 10px); right: calc(var(--c, 46px) + 8px);
+  display: flex; gap: 8px;
+}
 .fsb {
-  position: fixed; z-index: 20; top: calc(var(--f, 21px) + 10px); right: calc(var(--c, 46px) + 8px);
-  width: 38px; height: 38px; padding: 8px; border-radius: 50%; cursor: pointer;
+  flex: none; width: 38px; height: 38px; padding: 8px; border-radius: 50%; cursor: pointer;
   color: var(--gold-soft); background: rgba(7, 11, 23, .6); border: 1px solid rgba(232, 184, 74, .45);
   backdrop-filter: blur(4px); transition: background .15s, border-color .15s, transform .15s;
 }
 .fsb:hover { background: rgba(232, 184, 74, .18); border-color: var(--gold); transform: scale(1.06); }
 .fsb:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 3px; }
 .fsb svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-@media (max-width: 640px) { .fsb { width: 32px; height: 32px; padding: 6px; } }
+@media (max-width: 640px) { .fsb, .corner-tools .mute-toggle { width: 32px; height: 32px; } .fsb { padding: 6px; } }

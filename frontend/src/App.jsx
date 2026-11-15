@@ -85,8 +85,10 @@ export default function App() {
   return (
     <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
-    {screen !== 'stage' && <MuteToggle />}
-    {screen !== 'stage' && <FullscreenButton />}
+    {screen !== 'stage' && (
+      // top-right corner tools, side by side (the stage has its own controls in its header)
+      <div className="corner-tools"><MuteToggle /><FullscreenButton /></div>
+    )}
     <div className={`app screen-${screen}`}>
       {/* Where you are in the game. Finished steps are links back; judging shows the last step pending.
           Not on the stage itself: that screen is sized to the pixel and must stay uncluttered. */}
