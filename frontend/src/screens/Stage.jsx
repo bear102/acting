@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
+  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, drawSpotlight, faceFeature, poseFeature,
 } from '../vision.js'
 import { createDetector, videoRecordingMime } from '../stage/detector.js'
 import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
@@ -28,6 +28,11 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   const hasRef = !!scene.reference?.pose
   const hasFilm = !!scene.video
   const charName = (id) => scene.characters.find((c) => c.id === id)?.name
+  // Whose line it is at take time st (same window as the prompter), as a player index, else -1
+  const speakerAt = (st) => {
+    const line = scene.lines.find((l) => st >= l.start - 0.3 && st <= l.end + 0.5)
+    return line ? team.assignments[line.character] : -1
+  }
   const charsOf = (pi) => Object.entries(team.assignments).filter(([, p]) => p === pi).map(([c]) => c)
 
   const setPhase = (p) => { live.current.phase = p; setPhaseState(p) }
@@ -150,7 +155,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
       if (L.dirty) {
         L.dirty = false
-        draw(canvas, v, L.poses)
+        draw(canvas, v, L.poses, L.recording ? speakerAt(getTime()) : -1, now)
         if (L.debug) drawDebug(canvas, now)
       }
       if (now - lastUi > 100) {
@@ -228,14 +233,16 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
     // Overlay only: the camera itself is the <video> underneath (mirrored in CSS). The canvas
     // keeps the camera's aspect ratio and the same object-fit as the video, so they line up.
-    function draw(canvas, v, poses) {
+    function draw(canvas, v, poses, speaker, now) {
       const w = Math.min(960, v.videoWidth || 960)
       const h = Math.round((w * (v.videoHeight || 540)) / (v.videoWidth || 960))
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
       const ctx = canvas.getContext('2d')
       ctx.clearRect(0, 0, w, h)
-      // Identity only: a faint skeleton + name tag so players know they're being tracked.
-      poses.forEach((p, i) => drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h))
+      // During a take, whoever's line it is stands in a spotlight; everyone else is dimmed.
+      if (speaker >= 0) drawSpotlight(ctx, poses[speaker], PLAYER_COLORS[speaker], w, h, 0.5 + 0.5 * Math.sin(now / 260))
+      // Otherwise identity only: a faint skeleton + name tag so players know they're being tracked.
+      poses.forEach((p, i) => drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h, i === speaker))
     }
 
     function drawDebug(canvas, now) {
@@ -475,7 +482,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     <div className="sg-plaques">
       {team.players.map((p, i) => (
         <Plaque key={i} i={i} name={p.name} roles={charsOf(i).map(charName).join(' / ')}
-          present={present[i]} meter={meters[i]} hasRef={hasRef} />
+          present={present[i]} meter={meters[i]} hasRef={hasRef} speaking={isLive && speakerAt(t) === i} />
       ))}
     </div>
   )
@@ -532,12 +539,12 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   )
 }
 
-const Plaque = memo(function Plaque({ i, name, roles, present, meter, hasRef }) {
+const Plaque = memo(function Plaque({ i, name, roles, present, meter, hasRef, speaking }) {
   const pct = meter ?? 0
   const label = !present ? 'Step into the light' : !hasRef ? 'In frame' : meter == null ? 'Watching the film…' : favorWord(pct)
   const hot = hasRef && present && meter != null && meter >= 72
   return (
-    <div className={`sg-plaque ${present ? 'here' : ''} ${hot ? 'hot' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
+    <div className={`sg-plaque ${present ? 'here' : ''} ${hot ? 'hot' : ''} ${speaking ? 'speaking' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
       <div className="sg-plaque-top">
         <span className="sg-badge">{i + 1}</span>
         <div className="sg-plaque-names">

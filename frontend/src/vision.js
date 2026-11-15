@@ -101,12 +101,41 @@ export function faceFeature(bs) {
 
 const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24]]
 
-export function drawSkeleton(ctx, lm, color, label, w, h) {
+/** A pool of light on whoever's line it is: the rest of the frame dims and a ring in their colour
+ *  breathes around their head and shoulders. pulse is 0..1. */
+export function drawSpotlight(ctx, lm, color, w, h, pulse = 0) {
+  if (!lm) return
+  const P = (i) => [mirrorX(lm[i].x) * w, lm[i].y * h]
+  const [lx, ly] = P(11)
+  const [rx, ry] = P(12)
+  const [, ny] = P(0)
+  const sw = Math.hypot(lx - rx, ly - ry) || w * 0.15 // shoulder width, px
+  const cx = (lx + rx) / 2
+  const cy = (ny + (ly + ry) / 2) / 2 + sw * 0.2
+  const r = Math.max(sw * 1.35, w * 0.11)
+  ctx.save()
+  const dim = ctx.createRadialGradient(cx, cy, r * 0.8, cx, cy, r * 2.4)
+  dim.addColorStop(0, 'rgba(5, 8, 18, 0)')
+  dim.addColorStop(1, 'rgba(5, 8, 18, .6)')
+  ctx.fillStyle = dim
+  ctx.fillRect(0, 0, w, h)
+  ctx.strokeStyle = color
+  ctx.lineWidth = 5 + 4 * pulse
+  ctx.shadowColor = color
+  ctx.shadowBlur = 22 + 22 * pulse
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, r, r * 1.18, 0, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** active: this player is speaking, so the skeleton is bright and the name tag is filled in their colour. */
+export function drawSkeleton(ctx, lm, color, label, w, h, active = false) {
   if (!lm) return
   const P = (i) => [mirrorX(lm[i].x) * w, lm[i].y * h]
   ctx.save()
   // Faint on purpose: it only tells players they're tracked; the film is what they copy.
-  ctx.globalAlpha = 0.35
+  ctx.globalAlpha = active ? 0.9 : 0.35
   ctx.strokeStyle = color
   ctx.lineWidth = 3
   ctx.lineCap = 'round'
@@ -122,13 +151,14 @@ export function drawSkeleton(ctx, lm, color, label, w, h) {
   ctx.globalAlpha = 1
   if (label) {
     const [x, y] = P(0)
-    ctx.font = '700 22px Cinzel, serif'
+    ctx.font = active ? '900 30px Cinzel, serif' : '700 22px Cinzel, serif'
     ctx.textAlign = 'center'
     const tw = ctx.measureText(label).width
-    ctx.fillStyle = 'rgba(10,16,30,.75)'
-    ctx.fillRect(x - tw / 2 - 10, y - 92, tw + 20, 34)
-    ctx.fillStyle = color
-    ctx.fillText(label, x, y - 67)
+    const th = active ? 44 : 34
+    ctx.fillStyle = active ? color : 'rgba(10,16,30,.75)'
+    ctx.fillRect(x - tw / 2 - 12, y - 58 - th, tw + 24, th)
+    ctx.fillStyle = active ? '#0a101e' : color
+    ctx.fillText(label, x, y - 58 - th + (active ? 33 : 25))
   }
   ctx.restore()
 }
