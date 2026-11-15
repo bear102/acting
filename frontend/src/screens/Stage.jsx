@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
 } from '../vision.js'
@@ -7,7 +7,7 @@ import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
 import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
 import Roster from '../stage/Roster.jsx'
-import { HOLD_MS, readHoldsPref, shotHolds, writeHoldsPref } from '../stage/holds.js'
+import { HOLD_MS, readHoldsPref, sceneHolds, writeHoldsPref } from '../stage/holds.js'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
 import { play, setRecording } from '../audio/sfx.js'
@@ -45,9 +45,9 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
   const [hold, setHold] = useState(null) // { player, character, at } while the take is held at a cut
-  const [pauses, setPauses] = useState(readHoldsPref) // hold at shot changes (setting, remembered)
+  const [pauses, setPauses] = useState(readHoldsPref) // hold before each new speaker (setting, remembered)
   live.current.pauses = pauses // read by startRecording, which may run from an older render's closure
-  const canPause = shotHolds(scene.reference?.shots, team.assignments, scene.duration, scene.lines).length > 0
+  const canPause = sceneHolds(scene, team.assignments).length > 0
   const togglePauses = () => setPauses((on) => { writeHoldsPref(!on); return !on })
   const fullscreen = useFullscreen()
 
@@ -60,6 +60,8 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     const line = scene.lines.find((l) => st >= l.start - 0.3 && st <= l.end + 0.5)
     return line ? team.assignments[line.character] : -1
   }
+  // character id -> colour of the player who plays it (stable identity so the memoized film never re-renders)
+  const guideColors = useMemo(() => Object.fromEntries(Object.entries(team.assignments).map(([c, pi]) => [c, PLAYER_COLORS[pi]])), [team.assignments])
   const charsOf = (pi) => Object.entries(team.assignments).filter(([, p]) => p === pi).map(([c]) => c)
 
   const setPhase = (p) => { live.current.phase = p; setPhaseState(p) }
@@ -352,7 +354,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
       if (st >= scene.duration) finish()
     }
 
-    // Shot change: freeze the take (film, clock, recordings) so players can reposition.
+    // Hold: freeze the take (film, clock, recordings) so the next speaker can get in place.
     function startHold(h, now) {
       // Pause both recordings first: if either can't pause, skip this hold rather than let the
       // recording and the clock drift apart.
@@ -468,7 +470,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = L.pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration, scene.lines) : []
+    L.holds = L.pauses ? sceneHolds(scene, team.assignments) : []
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -621,7 +623,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
       {phase === 'countdown' && count > 0 && <div className="sg-overlay sg-countdown" key={count}>{count}</div>}
       {isLive && go && <div className="sg-overlay sg-countdown sg-go-flash">Action!</div>}
       {isLive && hold && (
-        // Shot change: one big disc for the player now on screen; its ring drains over the hold
+        // Hold: one big disc for the player about to speak; its ring drains over the hold
         <div className="sg-overlay soft sg-hold" style={{ '--pc': PLAYER_COLORS[hold.player], '--hold-ms': `${HOLD_MS}ms` }}>
           <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}.${nPlayers > 1 ? ' Everyone else, step out of frame.' : ' Get ready.'}`}</p>
           <div className="sg-hold-disc" aria-hidden="true">
@@ -673,10 +675,10 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
         <div className="sg-head-right">
           {isLive && <div className="sg-rec"><span className="sg-rec-dot" /> {t.toFixed(1)}s / {scene.duration}s</div>}
           {canPause && !isLive && phase !== 'sending' && (
-            // Setting: pause the take at each shot change so players can get ready (stage/holds.js)
+            // Setting: pause the take before each new speaker so they can get ready (stage/holds.js)
             <button type="button" className={`btn ghost sg-small-btn sg-pause-btn ${pauses ? 'on' : ''}`} role="switch"
               aria-checked={pauses} onClick={togglePauses}
-              title={pauses ? 'The scene pauses at each shot change so you can get ready. Click to turn off.' : 'Turn on pauses at each shot change'}>
+              title={pauses ? 'The scene pauses before each new speaker so they can get ready. Click to turn off.' : 'Turn on pauses before each new speaker'}>
               <span className="sg-switch" aria-hidden="true"><i /></span> Pauses
             </button>
           )}
@@ -702,7 +704,8 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
         <>
           <div className="sg-duo">
             <div className="sg-cell sg-cell-film">
-              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} getPark={getPark} />
+              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} getPark={getPark}
+                reference={scene.reference} guideColors={guideColors} />
             </div>
             <div className="sg-cell sg-cell-cam">{camera}</div>
           </div>
