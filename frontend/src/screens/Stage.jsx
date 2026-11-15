@@ -70,8 +70,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         const v = videoRef.current
         v.srcObject = stream
         await v.play()
-        L.models = await loadLandmarkers()
+        L.models = await loadLandmarkers(nPlayers)
         if (cancelled) return
+        L.tracker.setAspect(v.videoWidth / v.videoHeight)
         setPhase('ready')
         raf = requestAnimationFrame(loop)
       } catch (e) {
@@ -80,10 +81,19 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
     })()
 
+    // Debug overlay (press D): track ages, detection count, fps, detector cost. For venue testing.
+    const onKey = (e) => {
+      if ((e.key === 'd' || e.key === 'D') && !e.target.closest?.('input, textarea')) L.debug = !L.debug
+    }
+    window.addEventListener('keydown', onKey)
+
     let lastVideoTime = -1
     let frameNo = 0
     let lastUi = 0
     let lastFrameAt = performance.now()
+    const stats = { fps: 0, poseMs: 0, faceMs: 0, skipped: 0 }
+    // With 3+ people the face mesh is the expensive part: run it every 3rd frame (else 2nd).
+    const faceEvery = nPlayers >= 3 ? 3 : 2
     function loop() {
       const v = videoRef.current
       const canvas = canvasRef.current
@@ -92,13 +102,25 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       if (v.readyState >= 2 && v.currentTime !== lastVideoTime) {
         lastVideoTime = v.currentTime
         frameNo++
+        stats.fps += (1000 / Math.max(1, now - lastFrameAt) - stats.fps) * 0.1
         const { pose, face } = L.models
-        const pr = pose.detectForVideo(v, now)
-        const poses = L.tracker.assignPoses(pr.landmarks || [])
-        // Face mesh is heavier: run it every other frame
-        if (frameNo % 2 === 0 || !L.faces) {
-          const fr = face.detectForVideo(v, now)
-          L.faces = L.tracker.assignFaces(fr.faceLandmarks || [], fr.faceBlendshapes || [], poses)
+        // If detection is running slow, only detect every other frame. The tracker holds
+        // poses between detections, and the 10 Hz sampling grid below is unaffected.
+        const slow = stats.poseMs + stats.faceMs / faceEvery > 45
+        let poses = L.poses || Array(nPlayers).fill(null)
+        if (!slow || frameNo % 2 === 0) {
+          let t0 = performance.now()
+          const pr = pose.detectForVideo(v, now)
+          poses = L.tracker.update(pr.landmarks || [], now)
+          stats.poseMs += (performance.now() - t0 - stats.poseMs) * 0.2
+          if (frameNo % faceEvery === 0 || !L.faces) {
+            t0 = performance.now()
+            const fr = face.detectForVideo(v, now)
+            L.faces = L.tracker.assignFaces(fr.faceLandmarks || [], fr.faceBlendshapes || [], now)
+            stats.faceMs += (performance.now() - t0 - stats.faceMs) * 0.2
+          }
+        } else {
+          stats.skipped++
         }
         L.poses = poses
         const st = getTime()
@@ -106,6 +128,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         lastFrameAt = now
         if (hasRef) updateMeters(poses, st, dt, now)
         draw(canvas, v, poses)
+        if (L.debug) drawDebug(canvas, now)
         if (now - lastUi > 100) {
           lastUi = now
           setPresent(poses.map(Boolean))
@@ -169,6 +192,25 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       })
     }
 
+    function drawDebug(canvas, now) {
+      const ctx = canvas.getContext('2d')
+      const rows = [
+        `model ${L.models.model} · ${stats.fps.toFixed(0)} fps · pose ${stats.poseMs.toFixed(0)}ms · face ${stats.faceMs.toFixed(0)}ms/${faceEvery}f`,
+        `detections ${L.tracker.lastDetections} · players ${nPlayers} · ${L.tracker.locked ? 'LOCKED' : 'settling order'} · skipped ${stats.skipped}`,
+        ...L.tracker.debug(now).map((d) => `P${d.slot + 1} ${team.players[d.slot].name}: ${d.age == null ? 'never seen'
+          : d.age < 60 ? 'tracked' : d.held ? `held ${d.age}ms` : `lost ${d.age}ms`}${d.face ? ' · face' : ''}`),
+      ]
+      ctx.save()
+      ctx.font = '600 18px ui-monospace, monospace'
+      ctx.fillStyle = 'rgba(0,0,0,.65)'
+      ctx.fillRect(8, 8, 640, rows.length * 24 + 12)
+      rows.forEach((r, k) => {
+        ctx.fillStyle = k < 2 ? '#f3d58c' : PLAYER_COLORS[k - 2]
+        ctx.fillText(r, 18, 32 + k * 24)
+      })
+      ctx.restore()
+    }
+
     function tick(now) {
       const st = (now - L.start) / 1000
       // Sample features on a fixed 10 Hz grid so index == time * FEATURE_FPS
@@ -202,6 +244,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     return () => {
       cancelled = true
       cancelAnimationFrame(raf)
+      window.removeEventListener('keydown', onKey)
       L.recording = false
       try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
       try { L.speech?.abort() } catch { /* not running */ }
@@ -262,6 +305,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       L.speech = rec
     }
 
+    // Freeze who-is-who: people crossing mid-take must not swap identities.
+    L.tracker.lock()
     L.start = performance.now()
     L.recording = true
     setT(0)
