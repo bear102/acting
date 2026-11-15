@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +21,7 @@ load_dotenv(ROOT / ".env")
 
 import film_frames  # noqa: E402
 import oracle  # noqa: E402
+import reel  # noqa: E402
 import scoring  # noqa: E402
 import store  # noqa: E402
 import takes  # noqa: E402  (saves every take for offline re-scoring)
@@ -90,6 +91,18 @@ def get_scene(scene_id: str):
     # The stage only needs shots + the reference skeletons (ghost figures); face/audio stay server-side.
     slim = {"fps": ref.get("fps"), "shots": ref.get("shots") or [], "pose": ref.get("pose")} if ref.get("pose") else None
     return {**s, "reference": slim, "has_reference": bool(ref.get("pose") or ref.get("face") or ref.get("audio"))}
+
+
+@app.get("/api/scenes/{scene_id}/frame")
+def get_film_frame(scene_id: str, t: float = 0.0):
+    """A still of the film at time t, shown next to the players' own snapshot on the verdict reel."""
+    s = load_scenes().get(scene_id)
+    if not s or not s.get("video"):
+        raise HTTPException(404, "No film for this scene")
+    jpg = film_frames.film_frame(s, SCENES_DIR / s["video"], t)
+    if not jpg:
+        raise HTTPException(404, "No frame at that time")
+    return Response(jpg, media_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
 
 
 @app.get("/api/leaderboard")
@@ -168,22 +181,28 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     except Exception as e:  # noqa: BLE001
         log.warning("Film frame extraction failed: %s", e)
         pairs = []
+    # --- the reel: per-line beats, laurels, crew epithets and awards (presentation only, no new points)
+    the_reel = reel.build(scene, judges, assignments, stars, overall)
     words_said = await oracle.verdict(scene, m.get("team_name", "Nameless Crew"), cast, heard_text,
-                                      judges, overall, frame_bytes, pairs)
+                                      judges, overall, frame_bytes, pairs, reel.highlights(the_reel))
     critic = words_said.pop("critic", None)
     if critic:
         overall = apply_critic(overall, critic)
+        the_reel["voyage"] = reel.voyage(overall)
 
     result = {
         "scene_id": scene["id"], "scene_title": scene["title"],
         "team_name": m.get("team_name") or "Nameless Crew", "team_size": len(names),
         **overall, "judges": judges, "stars": stars, "verdict": words_said,
         "transcript": heard_text, "stt_source": stt_source, "critic": critic,
+        "reel": the_reel, "hall": None,
     }
     run = {k: result[k] for k in ("scene_id", "scene_title", "team_name", "team_size", "score", "kleos", "rank")} | {
         "epithet": words_said.get("epithet"), "judges": {k: v["score"] for k, v in judges.items()}}
     try:
         await run_in_threadpool(store.save_run, run)
+        rows = await run_in_threadpool(store.leaderboard, scene["id"], 500)
+        result["hall"] = reel.hall_place(rows, result["kleos"])
     except Exception as e:  # noqa: BLE001
         log.warning("Could not save run: %s", e)
     # --- save the take for calibration (tools/replay_takes.py); background thread, never fails a round
