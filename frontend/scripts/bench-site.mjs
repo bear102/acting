@@ -227,7 +227,7 @@ await cta.click()
 await page.waitForTimeout(800)
 rows.push(await idle(page, cdp, 'scenes'))
 // hover the film card (poster video plays on hover)
-const filmCard = page.locator('.ss-film').first()
+const filmCard = page.locator('.ss-film, .sx-card.film').first()
 if (await filmCard.count()) {
   await filmCard.hover()
   rows.push(await idle(page, cdp, 'scenes-hover', { keepMouse: true }))
@@ -237,12 +237,12 @@ if (await filmCard.count()) {
 }
 await page.waitForTimeout(800)
 rows.push(await idle(page, cdp, 'team'))
-await page.locator('.ss-cta').first().click()
+await page.locator('.ss-cta, button.btn.big:not([disabled])').first().click()
 await page.waitForTimeout(800)
 rows.push(await idle(page, cdp, 'rehearse'))
 // stage: time until the camera + models are ready
 const tStage = Date.now()
-await page.locator('.ss-cta').first().click()
+await page.locator('.ss-cta, button.btn.big:not([disabled])').first().click()
 let stageReadyMs = null
 try {
   await page.getByRole('button', { name: 'Action!' }).waitFor({ timeout: 120000 })
