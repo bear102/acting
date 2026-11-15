@@ -14,6 +14,7 @@ import Judging from './screens/Judging.jsx'
 import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
 import Backdrop from './ui/Backdrop.jsx'
+import FullscreenButton from './ui/FullscreenButton.jsx'
 import Journey from './ui/Journey.jsx'
 import OdysseyFrame from './theme/OdysseyFrame.jsx'
 
@@ -83,6 +84,7 @@ export default function App() {
   return (
     <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
+    {screen !== 'stage' && <FullscreenButton />}
     <div className={`app screen-${screen}`}>
       {/* Where you are in the game. Finished steps are links back; judging shows the last step pending.
           Not on the stage itself: that screen is sized to the pixel and must stay uncluttered. */}
