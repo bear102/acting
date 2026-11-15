@@ -1,0 +1,53 @@
+{
+  "id": "i-am-odysseus",
+  "order": 1,
+  "title": "I Am Odysseus",
+  "book": "Book IX",
+  "blurb": "Reveal yourself to the court of the Phaeacians. A solo trial for the bold.",
+  "difficulty": "Easy",
+  "video": null,
+  "duration": 43.3,
+  "characters": [
+    {
+      "id": "odysseus",
+      "name": "Odysseus",
+      "description": "The hero, finally ready to say his own name."
+    }
+  ],
+  "lines": [
+    {
+      "character": "odysseus",
+      "text": "I am Odysseus, son of Laertes, renowned among mankind for all manner of subtlety, so that my fame ascends to heaven.",
+      "emotion": "awe",
+      "direction": "Rise to your full height. Hand on heart.",
+      "start": 1.5,
+      "end": 11.5
+    },
+    {
+      "character": "odysseus",
+      "text": "I live in Ithaca, where there is a high mountain called Neritum, covered with forests.",
+      "emotion": "longing",
+      "direction": "Gaze into the distance, toward home.",
+      "start": 12.3,
+      "end": 19.7
+    },
+    {
+      "character": "odysseus",
+      "text": "It is a rugged island, but it breeds brave men, and my eyes know none that they had better look upon.",
+      "emotion": "longing",
+      "direction": "Softly. Almost to yourself.",
+      "start": 20.5,
+      "end": 30.5
+    },
+    {
+      "character": "odysseus",
+      "text": "Now let me tell you of the many hard adventures which by heaven's will I met with on my return from Troy.",
+      "emotion": "resolve",
+      "direction": "Turn to your audience. Arms wide.",
+      "start": 31.3,
+      "end": 41.8
+    }
+  ],
+  "source": "Homer, The Odyssey, tr. Samuel Butler (public domain), adapted",
+  "reference": null
+}

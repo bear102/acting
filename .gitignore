@@ -1,0 +1,22 @@
+# secrets
+.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+backend/data/
+
+# node
+node_modules/
+frontend/dist/
+
+# film clips are copyrighted: never commit them
+scenes/media/*
+!scenes/media/.gitkeep
+*.mp4
+*.mov
+*.mkv
+*.webm
+
+.DS_Store
