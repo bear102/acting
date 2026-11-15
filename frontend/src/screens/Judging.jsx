@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Bolt, Helmet, Lyre, Owl, Rose } from '../ui/Art.jsx'
+import { Bolt } from '../ui/Art.jsx'
+import { godArt } from '../ui/rankArt.js'
 import '../theme/judging.css'
 
 const COUNCIL = [
-  { Art: Owl, name: 'Athena', msg: 'Athena is checking your words against the sacred scroll…' },
-  { Art: Lyre, name: 'Apollo', msg: 'Apollo is tuning his lyre to your voice…' },
-  { Art: Helmet, name: 'Ares', msg: 'Ares is replaying your every move…' },
-  { Art: Rose, name: 'Aphrodite', msg: 'Aphrodite is reading your faces…' },
+  { key: 'athena', name: 'Athena', msg: 'Athena is checking your words against the sacred scroll…' },
+  { key: 'apollo', name: 'Apollo', msg: 'Apollo is tuning his lyre to your voice…' },
+  { key: 'ares', name: 'Ares', msg: 'Ares is replaying your every move…' },
+  { key: 'aphrodite', name: 'Aphrodite', msg: 'Aphrodite is reading your faces…' },
 ]
 const ZEUS_MSG = 'Zeus gathers the clouds and weighs your glory…'
 
@@ -45,9 +46,11 @@ export default function Judging({ snaps = [] }) {
       <h2 className="oj-title">The gods deliberate</h2>
 
       <ol className="oj-council">
-        {COUNCIL.map(({ Art, name }, k) => (
+        {COUNCIL.map(({ key, name }, k) => (
           <li key={name} className={`oj-god ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}`}>
-            <div className="oj-disc"><Art className="oj-art" /></div>
+            <div className="oj-disc">
+              <img className="oj-medal" src={godArt(key)} alt="" width="384" height="384" decoding="async" />
+            </div>
             <span className="oj-name">{name}</span>
           </li>
         ))}

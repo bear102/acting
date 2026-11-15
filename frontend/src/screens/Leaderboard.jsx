@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import { Laurel } from '../ui/Art.jsx'
 import { Pediment } from '../theme/Temple.jsx'
 import '../theme/hall.css'
+import { rankArt } from '../ui/rankArt.js'
 
 export default function Leaderboard({ onBack, highlight, onRetry }) {
   const [rows, setRows] = useState(null)
@@ -72,7 +73,7 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
                     </td>
                     <td><strong className="ol-crew">{r.team_name}</strong>{r.epithet && <div className="ol-epithet">{r.epithet}</div>}</td>
                     <td>{r.scene_title}<div className="ol-sub">{r.team_size} player{r.team_size > 1 ? 's' : ''}</div></td>
-                    <td className="ol-rank">{r.rank}</td>
+                    <td className="ol-rank"><RankCell rank={r.rank} /></td>
                     <td className="num kleos">{r.kleos}</td>
                   </tr>
                 ))}
@@ -84,7 +85,7 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
                       {highlight.verdict?.epithet && <div className="ol-epithet">{highlight.verdict.epithet}</div>}
                     </td>
                     <td>{highlight.scene_title}<div className="ol-sub">{highlight.team_size} player{highlight.team_size > 1 ? 's' : ''}</div></td>
-                    <td className="ol-rank">{highlight.rank}</td>
+                    <td className="ol-rank"><RankCell rank={highlight.rank} /></td>
                     <td className="num kleos">{highlight.kleos}</td>
                   </tr>
                 )}
@@ -95,5 +96,16 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
         <div className="ol-base" />
       </div>
     </div>
+  )
+}
+
+// Rank name with its small painted badge (lazy: rows below the fold don't fetch them).
+function RankCell({ rank }) {
+  const src = rankArt(rank)
+  return (
+    <span className="ol-rank-cell">
+      {src && <img className="ol-rank-badge" src={src} alt="" width="384" height="384" loading="lazy" decoding="async" />}
+      {rank}
+    </span>
   )
 }

@@ -1,5 +1,18 @@
 /* ---------- Judging: clouds part over Olympus, Zeus's bolt, the council lights in turn ---------- */
 .oj { position: relative; padding-top: clamp(8px, 4vh, 48px); overflow: hidden; }
+/* Painted Olympus behind everything; its glowing gap in the clouds (45% down the image) sits on the bolt.
+   680px tall: glow at 306px, so top = bolt centre (panel padding + 55% of the sky) - 306px. Static: no animation. */
+.oj::before {
+  content: ''; position: absolute; left: 0; right: 0; height: 680px; pointer-events: none;
+  top: calc(clamp(8px, 4vh, 48px) + clamp(150px, 26vh, 230px) * .55 - 306px);
+  background: url('/art/generated/olympus.webp') center / cover no-repeat;
+  opacity: .62;
+  -webkit-mask-image: radial-gradient(ellipse 58% 52% at 50% 45%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 58% 52% at 50% 45%, #000 40%, transparent 100%);
+}
+.oj > * { position: relative; }
+/* The painting supplies the clouds; the old flat SVG clouds would sit on it as solid blobs */
+.oj-cloud { display: none; }
 .oj-sky { position: relative; height: clamp(150px, 26vh, 230px); max-width: 560px; margin: 0 auto 6px; }
 .oj-radiance { position: absolute; inset: 0; border-radius: 50%;
   background: radial-gradient(circle at 50% 55%, rgba(243, 213, 140, .55), rgba(232, 184, 74, .12) 40%, transparent 68%);
@@ -35,12 +48,10 @@
 .oj-disc { width: clamp(58px, 7vw, 74px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
   background: radial-gradient(circle at 40% 35%, #34446d, var(--sea-deep) 80%);
   box-shadow: inset 0 0 0 2px var(--sea-light); transition: box-shadow .6s, background .6s; }
-.oj-art { width: 55%; height: 55%; color: var(--muted); transition: color .6s; }
-.oj-god.now .oj-disc { box-shadow: inset 0 0 0 2px var(--gold), 0 0 26px rgba(232, 184, 74, .6); animation: oj-pulse 1.1s ease-in-out infinite; }
-.oj-god.now .oj-art { color: var(--gold-soft); }
-.oj-god.done .oj-disc { background: radial-gradient(circle at 40% 35%, var(--clay), var(--clay-dark) 75%);
-  box-shadow: inset 0 0 0 3px var(--gold), 0 0 14px rgba(232, 184, 74, .35); }
-.oj-god.done .oj-art { color: var(--ink); }
+.oj-medal { width: 100%; height: 100%; border-radius: 50%; }
+.oj-god .oj-disc { width: clamp(64px, 9vh, 88px); background: none; box-shadow: none; }
+.oj-god.now .oj-disc { box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(232, 184, 74, .6); animation: oj-pulse 1.1s ease-in-out infinite; }
+.oj-god.done .oj-disc { box-shadow: 0 0 0 2px var(--gold), 0 0 14px rgba(232, 184, 74, .35); }
 @keyframes oj-pulse { 50% { transform: scale(1.07); } }
 .oj-name { font: 700 .9rem 'Cinzel', serif; color: var(--gold-soft); margin-top: 6px; }
 
