@@ -1,8 +1,9 @@
 """Feature definitions shared by the live scorer and the offline scene preprocessor.
 
 Both sides MUST produce identical shapes:
-  * pose frame  -> 7 upper-body landmarks [x, y] flattened (14 floats), image-normalized
-                   coordinates as the audience sees them (webcam is mirrored), or None.
+  * pose frame  -> 7 upper-body landmarks [x, y, visibility] flattened (21 floats),
+                   image-normalized coordinates as the audience sees them (webcam is
+                   mirrored, film is not), or None. 14-float legacy frames are accepted.
   * face frame  -> one float per name in BLENDSHAPES, or None.
   * audio       -> pitch (semitones, NaN when unvoiced) and energy (dB) at FEATURE_FPS.
 """
@@ -15,6 +16,10 @@ from pathlib import Path
 import numpy as np
 
 FEATURE_FPS = 10
+
+# Pose similarity = 100/(1+(d/POSE_SCALE)^2), d in shoulder widths. MUST match POSE_SCALE in
+# frontend/src/stage/pose.js so the live meter agrees with the final grade.
+POSE_SCALE = 0.55
 
 # MediaPipe pose indices: nose, L/R shoulder, L/R elbow, L/R wrist.
 # Hips are skipped on purpose: webcam players are usually framed from the waist up.
@@ -58,23 +63,108 @@ def emotion_vector(emotion: str | None) -> np.ndarray | None:
 
 
 # --------------------------------------------------------------------------- pose / face
+#
+# Pose frame contract (shared with frontend/src/vision.js):
+#   7 landmarks (POSE_INDICES) x [x, y, visibility] = 21 floats, or None.
+#   Legacy 14-float frames (no visibility) are read as visibility = 1.
+#
+# Comparisons happen in SCREEN order, not anatomical order: a film actor faces the camera
+# (their left shoulder is on screen-right) while the webcam view is mirrored (the player's
+# left shoulder is on screen-left). A player copying the screen therefore matches the actor's
+# geometry with swapped labels, so each L/R pair is re-ordered so that "left" = smaller x.
+
+VIS_MIN = 0.5
+_LR_PAIRS = [(1, 2), (3, 4), (5, 6)]  # shoulders, elbows, wrists (positions within POSE_INDICES)
+
+
+def pose_points(frame) -> tuple[np.ndarray, np.ndarray] | None:
+    """Raw frame -> (points (7,2), visibility (7,)) or None."""
+    if not frame:
+        return None
+    a = np.asarray(frame, dtype=float)
+    if a.size == 21:
+        a = a.reshape(7, 3)
+        return a[:, :2], a[:, 2]
+    if a.size == 14:
+        return a.reshape(7, 2), np.ones(7)
+    return None
+
+
+def normalize_pose_frame(frame) -> tuple[np.ndarray, np.ndarray] | None:
+    """Body-relative, screen-ordered points: origin shoulder midpoint, unit shoulder width."""
+    pv = pose_points(frame)
+    if pv is None:
+        return None
+    pts, vis = pv[0].copy(), pv[1].copy()
+    if pts[1, 0] > pts[2, 0]:  # put the screen-left shoulder (and its arm) first
+        for a, b in _LR_PAIRS:
+            pts[[a, b]] = pts[[b, a]]
+            vis[[a, b]] = vis[[b, a]]
+    ls, rs = pts[1], pts[2]
+    width = np.linalg.norm(ls - rs)
+    if width < 1e-3:
+        return None
+    return (pts - (ls + rs) / 2) / width, vis
+
+
+def pose_frame_distance(a, b) -> float | None:
+    """Mean landmark distance (shoulder widths) over landmarks visible in BOTH frames.
+
+    a, b are outputs of normalize_pose_frame. None when fewer than 3 landmarks are comparable.
+    """
+    if a is None or b is None:
+        return None
+    mask = (a[1] > VIS_MIN) & (b[1] > VIS_MIN)
+    if mask.sum() < 3:
+        return None
+    return float(np.linalg.norm(a[0][mask] - b[0][mask], axis=1).mean())
+
+
+def pose_similarity(d: float) -> float:
+    """Contract formula, mirrored by the frontend's live meter."""
+    return float(min(100.0, max(0.0, 100.0 / (1.0 + (d / POSE_SCALE) ** 2))))
+
+
+def face_distance(a, b) -> float | None:
+    if a is None or b is None or len(a) != len(b):
+        return None
+    return float(np.linalg.norm(np.asarray(a, dtype=float) - np.asarray(b, dtype=float)))
+
+
+def face_similarity(d: float) -> float:
+    return float(min(100.0, max(0.0, 100.0 / (1.0 + (d / 0.35) ** 2))))
+
+
+def windowed_match(ref: list, player: list, prep, dist, sim, window: int = 6) -> list[float | None]:
+    """Score each reference frame against the best player frame within +/- window frames.
+
+    Returns one entry per reference frame: None where the reference has nothing to compare
+    (character off screen / unusable), 0 where the player was missing, else the best similarity.
+    The window tolerates the player reacting a little late or early.
+    """
+    ref_n = [prep(f) for f in ref]
+    pl_n = [prep(f) for f in player]
+    out: list[float | None] = []
+    for i, r in enumerate(ref_n):
+        if r is None or (isinstance(r, tuple) and (r[1] > VIS_MIN).sum() < 3):
+            out.append(None)
+            continue
+        best = None
+        for j in range(max(0, i - window), min(len(pl_n), i + window + 1)):
+            d = dist(r, pl_n[j])
+            if d is not None and (best is None or d < best):
+                best = d
+        out.append(0.0 if best is None else sim(best))
+    return out
+
 
 def normalize_pose_seq(frames: list) -> np.ndarray:
-    """Turn raw pose frames into body-relative coordinates.
-
-    Origin = shoulder midpoint, unit = shoulder width, so distance to camera and
-    where the player stands stop mattering. Missing frames become NaN rows.
-    """
+    """(N, 14) screen-ordered normalized x,y per frame; NaN rows where missing."""
     out = np.full((len(frames), len(POSE_INDICES) * 2), np.nan)
     for i, f in enumerate(frames):
-        if not f:
-            continue
-        p = np.asarray(f, dtype=float).reshape(-1, 2)
-        ls, rs = p[1], p[2]
-        width = np.linalg.norm(ls - rs)
-        if width < 1e-3:
-            continue
-        out[i] = ((p - (ls + rs) / 2) / width).reshape(-1)
+        n = normalize_pose_frame(f)
+        if n is not None:
+            out[i] = n[0].reshape(-1)
     return out
 
 

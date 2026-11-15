@@ -24,11 +24,11 @@ Zeus delivers a spoken verdict, and your crew earns *kleos* (glory) in the Hall 
 |---|---|---|
 | Athena 🦉 (35%) | Words | Speech-to-text transcript aligned to the script word by word |
 | Apollo 🎵 (25%) | Voice | Voice presence, pitch range and dynamics (or DTW against the film actor's pitch contour), and whether each line starts on cue |
-| Ares ⚔️ (20%) | Movement | Shoulder-normalized upper-body pose, DTW against the film actor's pose, or gesture boldness when there's no reference |
-| Aphrodite 🌹 (20%) | Emotion | Face blendshapes projected onto the emotion each line calls for (rage, fear, joy, cunning…), plus DTW against the actor's face |
+| Ares ⚔️ (20%) | Movement | Shoulder-normalized upper-body pose. Each on-screen frame of the film actor is matched to the player's best frame within ±0.6 s, using only landmarks visible in both. Without a reference, gesture boldness |
+| Aphrodite 🌹 (20%) | Emotion | Face blendshapes matched the same ±0.6 s way against the actor, blended with the emotion each line calls for (rage, fear, joy, cunning…) |
 
-Each integration falls back if it's missing: no ElevenLabs key means browser speech recognition and
-browser TTS; no Gemini key means canned quips; no Mongo URI means a local JSON leaderboard.
+Each integration falls back if it's missing: no ElevenLabs key means local **Whisper** (faster-whisper,
+`WHISPER_MODEL`, default `base.en`) for speech-to-text, then browser speech recognition, plus browser TTS; no Gemini key means canned quips; no Mongo URI means a local JSON leaderboard.
 
 ## Run it
 
@@ -57,21 +57,30 @@ target emotion and stage direction.
 
 ### Adding a film clip as the reference
 
-Film clips are copyrighted, so they stay out of git (`scenes/media/` is ignored). To attach one:
+Film clips are copyrighted, so they stay out of git (`scenes/media/` and `preprocess/out/` are ignored).
+Film scenes cut between close-ups, so the preprocessor decides who is on screen **per shot**:
 
 ```powershell
-.venv\Scripts\python preprocess\preprocess_scene.py `
-    --scene scenes\my-name-is-noman.json --video D:\clips\odyssey.mp4 `
-    --start 3601.5 --end 3650 --order odysseus polyphemus --retime
+# Pass 1: detect shot cuts and write a template plus one thumbnail per shot
+.venv\Scripts\python preprocess\preprocess_scene.py --scene sceneseggars.json --video clip.mp4 `
+    --title "Get These Beggars Out" --characters penelope:Penelope antinous:Antinous odysseus:Odysseus
+#   -> preprocess\outeggars.shots.json + preprocess\out\shots_beggars\*.jpg
+#   Open the thumbnails and set each shot's "character" (or null for crowd/wide shots).
+
+# Pass 2: track the on-screen actor in every shot, transcribe the dialogue, write the reference
+.venv\Scripts\python preprocess\preprocess_scene.py --scene sceneseggars.json --video clip.mp4 `
+    --shots-file preprocess\outeggars.shots.json --lines-from-transcript
 ```
 
-- `--order`: character ids in left-to-right order as they appear on screen
-- `--retime`: transcribes the clip with ElevenLabs and snaps each script line to when it's actually said.
-  Edit the scene's `lines` to match the film's dialogue first.
+- `--shots "0-4.2:penelope,4.2-14.2:antinous,..."`: give the shot map inline instead of a file
+- `--lines-from-transcript`: builds the script from the dialogue (ElevenLabs if keyed, otherwise Whisper
+  `small.en`). The speaker is guessed from whoever is on screen, so fix reaction shots by hand.
+- `--retime`: keeps hand-written lines and snaps their timing to the dialogue
+- `--start/--end`: cut a window out of a longer source first
 
-The script cuts the clip, runs MediaPipe on it at 10 fps, extracts the audio contours, and writes it
-all into the scene JSON. The game then plays the clip during rehearsal, draws the actor's pose as a
-dashed "ghost" skeleton on stage, and scores against the actor instead of using the heuristics.
+The output goes into the scene JSON as `reference = {fps, shots, pose, face, audio}`. Each character's
+frames are null whenever someone else is on screen. In the game, the clip plays during rehearsal, the
+actor's skeleton appears as the ghost on stage, and the gods score you against the actor's frames.
 
 ## How we used ElevenLabs
 
@@ -84,7 +93,7 @@ dashed "ghost" skeleton on stage, and scores against the actor instead of using 
 
 ```
 backend/     app.py (API), scoring.py (the gods), features.py (shared feature math),
-             oracle.py (ElevenLabs + Gemini), store.py (MongoDB / local leaderboard)
+             oracle.py (ElevenLabs + Gemini), local_stt.py (Whisper), store.py (MongoDB / local leaderboard)
 frontend/    React app; src/vision.js wraps MediaPipe, src/screens/Stage.jsx is the live stage
 preprocess/  preprocess_scene.py: turns a film clip into reference data
 scenes/      scene scripts (+ gitignored media/)

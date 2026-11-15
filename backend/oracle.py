@@ -12,6 +12,8 @@ import random
 
 import httpx
 
+import local_stt
+
 log = logging.getLogger("oracle")
 
 EL_BASE = "https://api.elevenlabs.io/v1"
@@ -26,7 +28,7 @@ def _gemini_key() -> str | None:
 
 
 def status() -> dict:
-    return {"elevenlabs": bool(_el_key()), "gemini": bool(_gemini_key())}
+    return {"elevenlabs": bool(_el_key()), "gemini": bool(_gemini_key()), "whisper": local_stt.available()}
 
 
 # --------------------------------------------------------------------------- ElevenLabs STT
@@ -54,6 +56,21 @@ async def transcribe(audio: bytes, filename: str) -> list[dict] | None:
         return out
     except Exception as e:  # noqa: BLE001
         log.warning("ElevenLabs STT failed: %s", e)
+        return None
+
+
+# --------------------------------------------------------------------------- local Whisper STT
+
+async def transcribe_local(pcm) -> list[dict] | None:
+    """Offline fallback: faster-whisper on decoded 16 kHz PCM. None if unavailable or it fails."""
+    if pcm is None or not local_stt.available():
+        return None
+    from fastapi.concurrency import run_in_threadpool
+
+    try:
+        return await run_in_threadpool(local_stt.transcribe_pcm, pcm)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Whisper STT failed: %s", e)
         return None
 
 

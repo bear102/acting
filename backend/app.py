@@ -39,6 +39,15 @@ async def warm_up():
     """librosa JIT-compiles on first use (~5s); pay that before the first player does."""
     import numpy as np
     await run_in_threadpool(audio_contours, np.zeros(16000, dtype="float32"))
+    st = oracle.status()
+    if not st["elevenlabs"] and st["whisper"]:
+        import threading
+
+        import local_stt
+
+        # Load (and on first run download) the Whisper model now, without blocking startup.
+        threading.Thread(target=lambda: local_stt.transcribe_pcm(np.zeros(32000, dtype="float32")),
+                         daemon=True).start()
 
 
 def load_scenes() -> dict[str, dict]:
@@ -55,7 +64,7 @@ def summary(s: dict) -> dict:
     ref = s.get("reference") or {}
     return {k: s.get(k) for k in ("id", "title", "book", "blurb", "difficulty", "video", "duration",
                                   "characters", "order")} | {
-        "lines": len(s["lines"]), "has_reference": bool(ref.get("pose") or ref.get("audio"))}
+        "lines": len(s["lines"]), "has_reference": bool(ref.get("pose") or ref.get("face") or ref.get("audio"))}
 
 
 @app.get("/api/health")
@@ -75,9 +84,9 @@ def get_scene(scene_id: str):
     if not s:
         raise HTTPException(404, "No such scene")
     ref = s.get("reference") or {}
-    # The stage only needs the reference skeleton (for the ghost overlay)
-    return {**s, "reference": {"fps": ref.get("fps"), "pose": ref.get("pose")} if ref.get("pose") else None,
-            "has_reference": bool(ref)}
+    # The stage only needs shots + the reference skeletons (ghost figures); face/audio stay server-side.
+    slim = {"fps": ref.get("fps"), "shots": ref.get("shots") or [], "pose": ref.get("pose")} if ref.get("pose") else None
+    return {**s, "reference": slim, "has_reference": bool(ref.get("pose") or ref.get("face") or ref.get("audio"))}
 
 
 @app.get("/api/leaderboard")
@@ -96,10 +105,15 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     audio_bytes = await audio.read() if audio else b""
     frame_bytes = [await f.read() for f in frames]
 
-    # --- ears: ElevenLabs Scribe, falling back to the browser's own speech recognition
+    pcm = await run_in_threadpool(_decode, audio_bytes)
+
+    # --- ears: ElevenLabs Scribe -> local Whisper -> the browser's own speech recognition
     words = await oracle.transcribe(audio_bytes, audio.filename if audio else "take.webm")
     stt_source = "elevenlabs"
     if words is None:
+        words = await oracle.transcribe_local(pcm)
+        stt_source = "whisper"
+    if not words and m.get("browser_transcript"):  # Whisper missing, failed, or heard nothing
         stt_source = "browser"
         words = []
         for seg in m.get("browser_transcript", []):
@@ -107,11 +121,12 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
             start = max(0.0, seg["t"] - 0.38 * len(seg_words))
             for i, w in enumerate(seg_words):
                 words.append({"text": w, "start": start + 0.38 * i})
+    words = words or []
     has_times = any(w.get("start") is not None for w in words)
     heard_text = " ".join(w["text"] for w in words)
 
     # --- the four judges (CPU-bound, off the event loop)
-    contours = await run_in_threadpool(_contours, audio_bytes)
+    contours = await run_in_threadpool(_contours, pcm)
     assignments = {c: int(p) for c, p in m["assignments"].items()}
     players = m["features"]["players"]
 
@@ -165,19 +180,30 @@ def _char_name(scene, cid):
     return next((c["name"] for c in scene["characters"] if c["id"] == cid), cid)
 
 
-def _contours(audio_bytes: bytes) -> dict:
+def _decode(audio_bytes: bytes):
+    """Browser webm/opus -> 16 kHz mono PCM (None if empty or undecodable)."""
     if not audio_bytes:
-        return {"pitch": [], "energy": []}
+        return None
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
         f.write(audio_bytes)
         path = f.name
     try:
-        return audio_contours(decode_audio(path))
+        return decode_audio(path)
     except Exception as e:  # noqa: BLE001
         log.warning("Audio decode failed: %s", e)
-        return {"pitch": [], "energy": []}
+        return None
     finally:
         os.unlink(path)
+
+
+def _contours(pcm) -> dict:
+    if pcm is None or len(pcm) == 0:
+        return {"pitch": [], "energy": []}
+    try:
+        return audio_contours(pcm)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Audio contour extraction failed: %s", e)
+        return {"pitch": [], "energy": []}
 
 
 # Serve the built frontend (npm run build) so the demo runs from one port.

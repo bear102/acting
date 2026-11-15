@@ -95,11 +95,14 @@ export class PlayerTracker {
   }
 }
 
+// 21 floats: 7 landmarks x [x (mirrored), y, visibility]. Must match backend/features.py.
 export function poseFeature(lm) {
   if (!lm) return null
   const vis = (lm[11].visibility ?? 1) > 0.4 && (lm[12].visibility ?? 1) > 0.4
   if (!vis) return null
-  return POSE_INDICES.flatMap((i) => [+mirrorX(lm[i].x).toFixed(3), +lm[i].y.toFixed(3)])
+  return POSE_INDICES.flatMap((i) => [
+    +mirrorX(lm[i].x).toFixed(3), +lm[i].y.toFixed(3), +(lm[i].visibility ?? 1).toFixed(2),
+  ])
 }
 
 export function faceFeature(bs) {
@@ -138,28 +141,6 @@ export function drawSkeleton(ctx, lm, color, label, w, h) {
     ctx.fillRect(x - tw / 2 - 10, y - 92, tw + 20, 34)
     ctx.fillStyle = color
     ctx.fillText(label, x, y - 67)
-  }
-  ctx.restore()
-}
-
-// The reference actor's pose ("ghost"), drawn from a stored 14-float feature frame.
-export function drawGhost(ctx, frame, anchorLm, w, h) {
-  if (!frame || !anchorLm) return
-  const pts = []
-  for (let i = 0; i < 7; i++) pts.push([frame[i * 2], frame[i * 2 + 1]])
-  // Scale/translate the ghost onto the player's shoulders
-  const gMid = [(pts[1][0] + pts[2][0]) / 2, (pts[1][1] + pts[2][1]) / 2]
-  const gW = Math.hypot(pts[1][0] - pts[2][0], pts[1][1] - pts[2][1]) || 0.1
-  const pMid = [centerX(anchorLm), (anchorLm[11].y + anchorLm[12].y) / 2]
-  const pW = shoulderWidth(anchorLm)
-  const map = ([x, y]) => [((x - gMid[0]) / gW * pW + pMid[0]) * w, ((y - gMid[1]) / gW * pW + pMid[1]) * h]
-  const m = pts.map(map)
-  ctx.save()
-  ctx.strokeStyle = 'rgba(255,255,255,.45)'
-  ctx.setLineDash([10, 8])
-  ctx.lineWidth = 4
-  for (const [a, b] of [[1, 2], [1, 3], [3, 5], [2, 4], [4, 6]]) {
-    ctx.beginPath(); ctx.moveTo(...m[a]); ctx.lineTo(...m[b]); ctx.stroke()
   }
   ctx.restore()
 }

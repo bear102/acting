@@ -9,6 +9,7 @@ soundfile
 imageio-ffmpeg
 google-genai
 pymongo
+faster-whisper   # offline speech-to-text (live fallback + clip preprocessing)
 # preprocessing only
 mediapipe
 opencv-python-headless
