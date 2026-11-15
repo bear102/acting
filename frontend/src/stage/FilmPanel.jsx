@@ -17,6 +17,7 @@ function writePref(on) {
 // The film clip the players imitate, slaved to the stage clock:
 //   ready     -> loops for study (getTime returns a looping preview clock)
 //   countdown -> parked on frame 0
+//   hold      -> parked on the first frame of the new shot (stage/holds.js)
 //   live      -> plays from t=0; small drift is absorbed by nudging playbackRate, big jumps seek
 //   sending   -> paused
 // Audible, at a low volume while live (see TAKE_VOLUME above).
@@ -38,7 +39,7 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       if (!v || !v.duration) return
       const phase = getPhase()
       const t = getTime()
-      const vol = phase === 'live' ? TAKE_VOLUME : PREVIEW_VOLUME
+      const vol = phase === 'live' || phase === 'hold' ? TAKE_VOLUME : PREVIEW_VOLUME
       if (Math.abs(v.volume - vol) > 0.001) v.volume = vol
       if (phase === 'sending' || phase === 'loading' || t == null) {
         if (!v.paused) v.pause()
@@ -50,7 +51,12 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       // Seeking stalls decoding (and on a busy laptop can snowball into a seek storm), so only
       // seek for big jumps (start, preview loop wrap, long stalls) and at most once a second;
       // absorb small drift by nudging the playback rate instead.
-      if (Math.abs(drift) > 0.5 && (now - lastSeek.current > 1000 || phase !== 'live')) {
+      if (phase === 'hold') {
+        // Parked at a shot change: show exactly the frame the players should match. The target
+        // doesn't move during a hold, so this seeks once.
+        if (Math.abs(drift) > 0.03 && !v.seeking) { v.currentTime = target; lastSeek.current = now }
+        v.playbackRate = 1
+      } else if (Math.abs(drift) > 0.5 && (now - lastSeek.current > 1000 || phase !== 'live')) {
         v.currentTime = target
         lastSeek.current = now
         v.playbackRate = 1
@@ -59,7 +65,7 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       } else if (v.playbackRate !== 1) {
         v.playbackRate = 1
       }
-      if (phase === 'countdown') {
+      if (phase === 'countdown' || phase === 'hold') {
         if (!v.paused) v.pause()
       } else if (v.paused) {
         v.play().catch(() => {

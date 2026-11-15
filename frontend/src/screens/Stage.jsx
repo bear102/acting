@@ -7,6 +7,7 @@ import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
 import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
 import Roster from '../stage/Roster.jsx'
+import { HOLD_MS, shotHolds } from '../stage/holds.js'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
 import '../stage/stage.css'
@@ -22,6 +23,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   const [t, setT] = useState(0)
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
+  const [hold, setHold] = useState(null) // { player, character, left } while the take is held at a cut
   const fullscreen = useFullscreen()
 
   const nPlayers = team.players.length
@@ -37,12 +39,20 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   const setPhase = (p) => { live.current.phase = p; setPhaseState(p) }
 
+  // Take time in scene seconds: wall time since "Action!" minus every hold, so it stands still
+  // while the take is held at a shot change.
+  const sceneTime = (now) => {
+    const L = live.current
+    const held = L.pausedMs + (L.hold ? now - L.hold.since : 0)
+    return (now - L.start - held) / 1000
+  }
+
   // Stage clock shared with the film panel and the favor meters.
   // Before "Action!" it loops the scene as a silent preview so players can study the film.
   const getTime = useCallback(() => {
     const L = live.current
     const now = performance.now()
-    if (L.recording) return (now - L.start) / 1000
+    if (L.recording) return sceneTime(now)
     if (L.phase === 'countdown') return 0
     if (L.phase === 'sending') return L.lastT ?? 0
     if (L.previewStart == null) L.previewStart = now
@@ -126,6 +136,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     let lastPoseCaptured = -Infinity
     let shownPresent = ''
     let shownMeters = ''
+    let shownHold = ''
     const stats = {
       fps: 0, poseMs: 0, faceMs: 0, poseHz: 0, frames: 0, detects: 0, faceDetects: 0,
       detectMsTotal: 0, mode: '', model: '', delegate: '',
@@ -212,6 +223,12 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       const mk = ms.join()
       if (mk !== shownMeters) { shownMeters = mk; setMeters(ms) }
       if (L.recording) setT(getTime())
+      const left = L.hold ? Math.max(1, Math.ceil((L.hold.until - performance.now()) / 1000)) : null
+      const hk = L.hold ? `${L.hold.player}:${left}` : ''
+      if (hk !== shownHold) {
+        shownHold = hk
+        setHold(L.hold ? { player: L.hold.player, character: L.hold.character, left } : null)
+      }
       if (L.debug) L.dirty = true
     }
 
@@ -265,7 +282,15 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     }
 
     function tick(now) {
-      const st = (now - L.start) / 1000
+      if (L.hold) {
+        if (now < L.hold.until) return // held: nothing is sampled, the clock stands still
+        endHold(now)
+      }
+      const st = sceneTime(now)
+      if (L.holdIdx < L.holds.length && st >= L.holds[L.holdIdx].at) {
+        startHold(L.holds[L.holdIdx++], now)
+        return
+      }
       // Sample features on a fixed 10 Hz grid so index == time * FEATURE_FPS
       while (L.nextSample <= st) {
         for (let i = 0; i < nPlayers; i++) {
@@ -280,6 +305,36 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
       if (st >= scene.duration) finish()
     }
+
+    // Shot change: freeze the take (film, clock, recordings) so players can reposition.
+    function startHold(h, now) {
+      // Pause both recordings first: if either can't pause, skip this hold rather than let the
+      // recording and the clock drift apart.
+      const paused = []
+      try {
+        for (const r of [L.recorder, L.videoRecorder]) {
+          if (r?.state === 'recording') { r.pause(); paused.push(r) }
+        }
+      } catch (e) {
+        console.warn('Recorder could not pause; skipping this hold', e)
+        paused.forEach((r) => { try { r.resume() } catch { /* already running */ } })
+        return
+      }
+      L.hold = { ...h, since: now, until: now + HOLD_MS }
+      L.phase = 'hold' // the film panel parks on the new shot; React's phase stays 'live'
+      L.dirty = true
+    }
+
+    function endHold(now) {
+      if (!L.hold) return
+      L.pausedMs += now - L.hold.since
+      L.hold = null
+      if (L.phase === 'hold') L.phase = 'live'
+      for (const r of [L.recorder, L.videoRecorder]) {
+        try { if (r?.state === 'paused') r.resume() } catch { /* already running */ }
+      }
+    }
+    L.endHold = endHold
 
     function snapshot(st) {
       const v = videoRef.current
@@ -300,8 +355,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       window.removeEventListener('keydown', onKey)
       document.body.classList.remove('stage-live')
       L.recording = false
-      try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
-      try { if (L.videoRecorder?.state === 'recording') L.videoRecorder.stop() } catch { /* already stopped */ }
+      // 'paused' too: the stage can be left in the middle of a shot-change hold
+      try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
+      try { if (L.videoRecorder && L.videoRecorder.state !== 'inactive') L.videoRecorder.stop() } catch { /* already stopped */ }
       L.videoTrack?.stop()
       try { L.speech?.abort() } catch { /* not running */ }
       L.det?.destroy()
@@ -336,6 +392,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.transcript = []
     L.chunks = []
     L.meter = Array(nPlayers).fill(null)
+    L.pausedMs = 0
+    L.hold = null
+    L.holdIdx = 0
+    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration, nPlayers, scene.lines)
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -368,8 +428,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       rec.lang = 'en-US'
       rec.onresult = (e) => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
-            L.transcript.push({ text: e.results[i][0].transcript.trim(), t: (performance.now() - L.start) / 1000 })
+          // side talk during a shot-change hold ("step out!") is not part of the scene
+          if (e.results[i].isFinal && !L.hold) {
+            L.transcript.push({ text: e.results[i][0].transcript.trim(), t: sceneTime(performance.now()) })
           }
         }
       }
@@ -389,8 +450,11 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   async function finish() {
     const L = live.current
     if (!L.recording) return
-    L.lastT = (performance.now() - L.start) / 1000
+    const now = performance.now()
+    L.endHold?.(now) // ended during a hold: resume so the recorders stop cleanly and the clock is settled
+    L.lastT = sceneTime(now)
     L.recording = false
+    setHold(null)
     setPhase('sending')
     try { L.speech?.stop() } catch { /* already stopped */ }
     const stopRec = (rec, chunks, type) => new Promise((resolve) => {
@@ -470,6 +534,21 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       )}
 
       {phase === 'countdown' && <div className="sg-overlay sg-countdown" key={count}>{count || 'Action!'}</div>}
+      {isLive && hold && (
+        // Shot change: the player now on screen lights up, everyone else steps out
+        <div className="sg-overlay soft sg-hold">
+          <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}. Everyone else, step out of frame.`}</p>
+          <div className="sg-hold-count" key={hold.left} aria-hidden="true">{hold.left}</div>
+          <div className="sg-places" aria-hidden="true">
+            {team.players.map((p, i) => (
+              <div key={i} className={`sg-place ${i === hold.player ? 'here' : 'away'}`} style={{ '--pc': PLAYER_COLORS[i] }}>
+                <span className="sg-place-disc">{i + 1}</span>
+                <span className="sg-place-name">{i === hold.player ? charName(hold.character) : p.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {phase === 'sending' && <div className="sg-overlay"><div className="sg-spinner" />Cut! Sending your performance to Olympus…</div>}
 
       {isLive && !hasFilm && <Prompter scene={scene} team={team} t={t} />}
