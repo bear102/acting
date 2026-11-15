@@ -21,7 +21,7 @@ function Cloud({ className }) {
   )
 }
 
-export default function Judging() {
+export default function Judging({ snaps = [] }) {
   const [i, setI] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setI((x) => Math.min(x + 1, COUNCIL.length)), 1600)
@@ -49,10 +49,17 @@ export default function Judging() {
           <li key={name} className={`oj-god ${k < i ? 'done' : ''} ${k === i ? 'now' : ''}`}>
             <div className="oj-disc"><Art className="oj-art" /></div>
             <span className="oj-name">{name}</span>
-            <span className="oj-state">{k < i ? 'has judged' : k === i ? 'judging…' : 'awaits'}</span>
           </li>
         ))}
       </ol>
+
+      {snaps.length > 0 && (
+        <div className="oj-stills" aria-hidden="true">
+          {snaps.slice(0, 6).map((s, k) => (
+            <img key={s.url} src={s.url} alt="" style={{ '--k': k, '--n': Math.min(snaps.length, 6) }} />
+          ))}
+        </div>
+      )}
 
       <p className="oj-msg" key={i}>{zeus ? ZEUS_MSG : COUNCIL[i].msg}</p>
     </div>
