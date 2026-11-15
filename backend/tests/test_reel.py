@@ -105,8 +105,27 @@ def test_build_awards_and_crew():
     assert r["laurels_max"] == 9 and r["streak"] == 3 and r["best"] is not None
     maya, jo = r["crew"]
     assert maya["epithet"] == "the Silver-Tongued" and maya["score"] == 70
-    assert jo["best"] == "words" and jo["domains"]["face"] == 20
+    # both were word-perfect: Maya (first) keeps the words epithet, Jo takes her next-best domain
+    assert jo["best"] == "voice" and jo["epithet"] == "the Lyre-Voiced" and jo["domains"]["face"] == 20
     assert "STRONGEST LINE" in reel.highlights(r)
+
+
+def test_crew_epithets_are_not_shared():
+    def beat(pi, words, voice):
+        return {"player": pi, "scores": {"words": words, "voice": voice, "body": 0, "face": 0}}
+    stars = [{"name": "Al", "characters": ["a"]}, {"name": "Bo", "characters": ["b"]},
+             {"name": "Cy", "characters": ["c"]}, {"name": "Di", "characters": ["d"]}]
+    js = {"ares": {"per_character": {"a": 20, "b": 50, "c": 10, "d": 0}},
+          "aphrodite": {"per_character": {"a": 10, "b": 40, "c": 10, "d": 0}}}
+    # Al and Bo both peak at words, Bo higher; Cy's only qualifying domain (words) gets taken; Di is faint
+    bs = [beat(0, 90, 60), beat(1, 98, 30), beat(2, 80, 20), beat(3, 10, 10)]
+    al, bo, cy, di = reel.crew(bs, js, stars)
+    assert [c["name"] for c in (al, bo, cy, di)] == ["Al", "Bo", "Cy", "Di"]  # input order kept
+    assert bo["epithet"] == "the Silver-Tongued" and bo["best"] == "words"  # the stronger one keeps it
+    assert al["epithet"] == "the Lyre-Voiced" and al["best"] == "voice"
+    assert cy["epithet"] == "the Silver-Tongued" and cy["best"] == "words"  # nothing free: falls back
+    assert di["epithet"] == reel.FAINT_EPITHET and di["best"] is None
+    assert al["domains"] == {"words": 90, "voice": 60, "body": 20, "face": 10}
 
 
 def test_silent_take_gets_no_praise():

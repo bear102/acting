@@ -83,7 +83,11 @@ def _streak(bs: list[dict]) -> int:
 
 
 def crew(bs: list[dict], judges: dict, stars: list[dict]) -> list[dict]:
-    out = []
+    """One epithet per player, from their strongest domain, and no two players share one if avoidable.
+
+    Players claim epithets strongest-first: each takes their highest domain (>= 35) still free.
+    If every qualifying domain is already taken they keep their top one; FAINT_EPITHET may repeat."""
+    all_doms = []
     for pi, star in enumerate(stars):
         mine = [b for b in bs if b["player"] == pi]
         chars = star.get("characters") or []
@@ -96,11 +100,21 @@ def crew(bs: list[dict], judges: dict, stars: list[dict]) -> list[dict]:
             vals = [v for v in vals if v is not None]
             if vals:
                 doms[d] = sum(vals) / len(vals)
-        best = max(doms, key=doms.get) if doms else None
-        epithet = EPITHETS[best] if best and doms[best] >= 35 else FAINT_EPITHET
-        out.append({**star, "epithet": epithet, "best": best if best and doms[best] >= 35 else None,
-                    "domains": {k: round(v) for k, v in doms.items()}})
-    return out
+        all_doms.append(doms)
+
+    # rank each player's qualifying domains, strongest first (ties keep the DOMAINS order)
+    ranked = [sorted((d for d in doms if doms[d] >= 35), key=lambda d: -doms[d]) for doms in all_doms]
+    best: list[str | None] = [None] * len(stars)
+    taken: set[str] = set()
+    # strongest player claims first; ties keep the input order
+    for pi in sorted((i for i in range(len(stars)) if ranked[i]), key=lambda i: -all_doms[i][ranked[i][0]]):
+        free = [d for d in ranked[pi] if d not in taken]
+        best[pi] = free[0] if free else ranked[pi][0]
+        taken.add(best[pi])
+
+    return [{**star, "epithet": EPITHETS[best[pi]] if best[pi] else FAINT_EPITHET, "best": best[pi],
+             "domains": {k: round(v) for k, v in all_doms[pi].items()}}
+            for pi, star in enumerate(stars)]
 
 
 def awards(bs: list[dict], judges: dict) -> list[dict]:
