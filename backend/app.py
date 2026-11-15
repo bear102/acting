@@ -246,9 +246,12 @@ _COMMON = {
 
 
 def scene_keyterms(scene: dict, limit: int = 100) -> list[str]:
-    """Bias Scribe toward this scene's script: character names, then distinctive words (4+ letters).
+    """Bias Scribe toward this scene's PROPER NAMES only: character names plus capitalised names used
+    mid-sentence in the script (Zeus, Noman, Achaeans, Sparta, Menelaus...).
 
-    Sanitized to letters/digits/spaces/apostrophes/hyphens, de-duplicated (case-insensitive), capped.
+    Deliberately NOT ordinary script words: biasing toward the script's own wording makes Scribe "hear"
+    the line even when a player (or the film) said something else, which inflates Athena. Sanitized to
+    letters/digits/spaces/apostrophes/hyphens, de-duplicated (case-insensitive), capped.
     """
     out, seen = [], set()
 
@@ -263,10 +266,13 @@ def scene_keyterms(scene: dict, limit: int = 100) -> list[str]:
         add(c.get("name", ""))
         add(c.get("id", "").replace("-", " "))
     for line in scene.get("lines", []):
-        for w in line.get("text", "").split():
-            w = re.sub(r"[^A-Za-z0-9'-]", "", w).strip("'-")
-            if len(w) >= 4 and w.lower() not in _COMMON:
+        sentence_start = True
+        for raw in line.get("text", "").split():
+            w = re.sub(r"[^A-Za-z0-9'-]", "", raw).strip("'-")
+            w = re.sub(r"'s$", "", w)
+            if w[:1].isupper() and not sentence_start and len(w) >= 3 and w.lower() not in _COMMON and not re.match(r"^I('|$)", w):
                 add(w)
+            sentence_start = raw[-1:] in ".?!"
     return out
 
 
