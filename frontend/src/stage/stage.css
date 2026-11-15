@@ -132,6 +132,9 @@
 .sg-prompter { border-top: 5px solid var(--pc, transparent); transition: border-color .2s, background-color .2s; }
 .sg-words { color: rgba(244, 236, 220, .5); font-size: 1.6rem; font-weight: 600; line-height: 1.16; }
 .sg-words span { transition: color .15s, text-shadow .15s; }
+/* a long line arrives a chunk at a time: each new chunk fades in */
+.sg-words { animation: sg-chunk .18s ease both; }
+@keyframes sg-chunk { from { opacity: 0; } }
 .sg-words .lit { color: #fff; text-shadow: 0 0 16px var(--pc), 0 2px 2px #000; }
 /* the upcoming line: whole, in its speaker's colour, a touch dimmer than a live one */
 .sg-prompter.soon .sg-words { color: color-mix(in srgb, var(--pc) 70%, #f4ecdc); opacity: .8; }
