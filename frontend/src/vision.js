@@ -122,17 +122,34 @@ export function drawSkeleton(ctx, lm, color, label, w, h, active = false) {
   }
   ctx.globalAlpha = 1
   if (label) {
+    // Sized to the canvas so it reads from 2-3 m; clamped so it never leaves the frame.
     const [x, y] = P(0)
-    ctx.font = active ? '900 30px Cinzel, serif' : '700 22px Cinzel, serif'
+    let fontPx = Math.round(h * (active ? 0.065 : 0.05))
+    const setFont = () => { ctx.font = `${active ? 900 : 700} ${fontPx}px Cinzel, serif` }
+    setFont()
     ctx.textAlign = 'center'
-    const tw = ctx.measureText(label).width
-    const th = active ? 44 : 34
+    ctx.textBaseline = 'middle'
+    let bw = ctx.measureText(label).width + fontPx
+    if (bw > w - 8) { // too wide for the frame: shrink the text to fit
+      fontPx = Math.max(10, Math.floor(fontPx * (w - 8) / bw))
+      setFont()
+      bw = Math.min(w - 8, ctx.measureText(label).width + fontPx)
+    }
+    const bh = fontPx * 1.45
+    const bx = Math.round(Math.max(4, Math.min(x - bw / 2, w - 4 - bw)))
+    // Above the head; if the head is too close to the top for that, below the chin instead,
+    // so the tag never sits on the speaker's face.
+    const above = y - h * 0.1 - bh
+    const by = Math.round(above >= 4 ? above : Math.min(h - 4 - bh, y + h * 0.12))
+    if (active) {
+      ctx.shadowColor = color
+      ctx.shadowBlur = fontPx * 0.6
+    }
     ctx.fillStyle = active ? color : 'rgba(10,16,30,.75)'
-    if (active) { ctx.shadowColor = color; ctx.shadowBlur = 24 }
-    ctx.fillRect(x - tw / 2 - 12, y - 58 - th, tw + 24, th)
+    ctx.fillRect(bx, by, bw, bh)
     ctx.shadowBlur = 0
     ctx.fillStyle = active ? '#0a101e' : color
-    ctx.fillText(label, x, y - 58 - th + (active ? 33 : 25))
+    ctx.fillText(label, bx + bw / 2, by + bh / 2)
   }
   ctx.restore()
 }
