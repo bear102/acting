@@ -241,7 +241,7 @@
 /* subtitles band: reserved height so the layout never jumps between lines */
 .sg-band {
   flex: none; margin-top: 0; position: relative;
-  min-height: clamp(116px, 21vh, 210px);
+  min-height: clamp(96px, 15vh, 160px);  /* slimmer so the film gets more height */
   background: linear-gradient(180deg, rgba(58, 20, 38, .6), rgba(8, 10, 22, .92));
 }
 .sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
@@ -307,13 +307,13 @@ body.stage-live .bd-torch { display: none; }
    (1376 - 217) / 1376 = 84.2% of the cell width and the arch sits above the caption, never on it.
    Framed box = 1.187 x film width wide, 0.754 x film width tall -> aspect 1.574.
    No filter/shadow here on purpose: a filter on the video's ancestor costs a repaint per frame. */
-/* Width shares 56 / 44 (were 54 / 46): the frame takes ~16% of the film cell, so this keeps the
-   film picture and the camera about the same size. */
+/* Width shares 64 / 36 (film is the star: players imitate it; was 56 / 44). The
+   camera gets the rest; it only needs to show the players clearly. */
 .sg-cell-film {
   container-type: inline-size;
-  width: min(calc((100cqw - var(--gap)) * .56), calc(100cqh * 1.574));
+  width: min(calc((100cqw - var(--gap)) * .64), calc(100cqh * 1.574));
 }
-.sg-duo .sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .44 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-duo .sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .36 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
 .sg-film {
   gap: 0;
   border-style: solid;
