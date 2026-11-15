@@ -97,9 +97,33 @@ actor's skeleton appears as the ghost on stage, and the gods score you against t
 
 ## How we used ElevenLabs
 
-- **Speech to Text (Scribe)**: transcribes each performance with word-level timestamps. Athena scores line
-  accuracy from it, and Apollo scores whether each line lands on cue. During preprocessing it also
-  aligns script lines to the film's dialogue.
+ElevenLabs is both the gods' ears (live scoring) and the game's whole soundscape (generated ahead of time).
+
+**Live, every take**
+- **Speech to Text (Scribe v2) with keyterms**: transcribes each performance with word-level timestamps. Each scene's
+  character names and distinctive words are sent as keyterms, so names like *Antinous*, *Noman* and *Eurylochus* are
+  heard correctly (v2 fixed "the doors are locked" to the real line "the door's unlocked"). Athena scores line
+  accuracy from it; Apollo scores whether each line lands on cue and at the right pace. Falls back to Scribe v1, then
+  to local Whisper if the network is down.
+
+**Generated once and shipped with the game** (`tools/gen_audio_assets.py`, `preprocess/voice_scene.py`)
+- **Voice Design**: six original character voices designed from text descriptions (an ancient bard, Odysseus,
+  Polyphemus, a Siren, Eurylochus, Penelope).
+- **Text to Dialogue (Eleven v3) with emotion tags**: full acted performances of the four Homer scenes, with each
+  line's emotion (`[angry]`, `[sly]`, `[sad]`...) driving the delivery. Rehearsal plays them as a read-through with
+  live line highlighting and a play button per line. Their pitch/energy contours become **Apollo's reference
+  voice** for those scenes, and the returned timestamps re-time every line of the teleprompter.
+- **Text to Speech (Eleven v3)**: the bard's sung invocation of the Muse for each scene, and the Devpost demo
+  voiceover (`docs/devpost/voiceover/`).
+- **Forced Alignment**: aligns the film clip's real dialogue to the script, so subtitles and cue scoring match the
+  film to the word.
+- **Sound Effects**: the temple gong before *Action!*, the clapperboard after *Cut!*, thunder when Zeus judges, a
+  crowd reaction for each of the six ranks, applause in the Hall of Heroes, and seamless ambient loops (night sea,
+  hearth, wind).
+- **Music**: the landing theme, the judging drumroll and three verdict fanfares.
+
+Nothing generated ever plays while the microphone is recording: the audio helper hard-stops all sound the moment
+a take starts and only releases it after the recorders stop.
 
 ## Project layout
 
