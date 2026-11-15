@@ -358,6 +358,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       cancelAnimationFrame(raf)
       window.removeEventListener('keydown', onKey)
       document.body.classList.remove('stage-live')
+      L.unmounted = true
+      clearInterval(L.countdownIv) // leaving during the countdown must not start a take afterwards
       L.recording = false
       // 'paused' too: the stage can be left in the middle of a shot-change hold
       try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
@@ -372,16 +374,19 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   // ---------------------------------------------------------------- take control
   const begin = () => {
+    const L = live.current
+    if (L.countdownIv || L.recording) return // double-click on "Action!" must not start two takes
     play('gong', { allowOnStage: true })
     setPhase('countdown')
     let n = 3
     setCount(n)
-    const iv = setInterval(() => {
+    L.countdownIv = setInterval(() => {
       n--
       setCount(n)
       if (n === 0) {
-        clearInterval(iv)
-        startRecording()
+        clearInterval(L.countdownIv)
+        L.countdownIv = null
+        if (!L.unmounted) startRecording()
       }
     }, 900)
   }

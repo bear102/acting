@@ -35,7 +35,8 @@ export default function Rehearse({ scene, team, onGo }) {
   const voiceRef = useRef(null) // the ElevenLabs read-through / line clip currently playing
   const voiced = scene.voiced
   const stopVoice = () => { voiceRef.current?.pause(); voiceRef.current = null }
-  useEffect(() => () => { stopRef.current = true; window.speechSynthesis?.cancel(); stopVoice() }, [])
+  const mounted = useRef(true)
+  useEffect(() => () => { mounted.current = false; stopRef.current = true; window.speechSynthesis?.cancel(); stopVoice() }, [])
 
   // A crackling hearth under the rehearsal (ElevenLabs sound effect); stops when we leave.
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function Rehearse({ scene, team, onGo }) {
     stopVoice()
     window.speechSynthesis?.cancel()
     const a = await play(path, { volume: 0.9 })
+    if (a && !mounted.current) { a.pause(); return null } // left rehearsal while the clip was loading
     if (!a) {
       setHint(isMuted() ? 'Sound is off. Turn it on with the speaker button.' : '')
       return null

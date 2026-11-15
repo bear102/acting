@@ -112,6 +112,7 @@ export function play(name, { volume = DEFAULT_VOL.sfx, allowOnStage = false } = 
   if (stageLive() && !allowOnStage) { stats.blockedStage++; return Promise.resolve(null) }
   const a = new Audio(src(name))
   a.volume = volume
+  a.__allowOnStage = allowOnStage
   oneShots.add(a)
   a.addEventListener('ended', () => oneShots.delete(a))
   stats.played++
@@ -135,6 +136,8 @@ export function stopAll() {
 }
 
 export function setRecording(on) {
+  // Recording only exists on the stage; a stale call from an unmounted stage must not lock the app silent.
+  if (on && !stageLive()) return
   recording = !!on
   stats.recording = recording
   if (recording) stopAll()
@@ -173,6 +176,8 @@ if (hasWindow) {
     if (!document.body) return
     new MutationObserver(() => {
       if (!stageLive() && recording) setRecording(false)
+      // Entering the stage: cut one-shots from other screens (e.g. a rehearsal read-through still playing)
+      if (stageLive()) for (const a of [...oneShots]) if (!a.__allowOnStage) { a.pause(); a.src = ''; oneShots.delete(a) }
       reconcile()
     }).observe(document.body, { attributes: true, attributeFilter: ['class'] })
   }
