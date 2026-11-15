@@ -29,9 +29,9 @@ async function create(Task, fileset, options) {
   }
 }
 
-async function createPose(fileset, numPoses) {
+async function createPose(fileset, numPoses, lite) {
   let lastError
-  for (const model of POSE_MODELS) {
+  for (const model of lite ? ['pose_landmarker_lite'] : POSE_MODELS) {
     try {
       const task = await create(PoseLandmarker, fileset, {
         baseOptions: { modelAssetPath: `/mediapipe/models/${model}.task` },
@@ -54,12 +54,12 @@ async function createPose(fileset, numPoses) {
  * duplicate detection can't push a real player out). Models load once; a different team
  * size only changes numPoses/numFaces.
  */
-export function loadLandmarkers(players = 4) {
+export function loadLandmarkers(players = 4, { lite = false } = {}) {
   const want = Math.min(players + 1, 5)
   if (!loading) {
     loading = (async () => {
       const fileset = await FilesetResolver.forVisionTasks('/mediapipe/wasm')
-      const { task: pose, model } = await createPose(fileset, want)
+      const { task: pose, model } = await createPose(fileset, want, lite)
       const face = await create(FaceLandmarker, fileset, {
         baseOptions: { modelAssetPath: '/mediapipe/models/face_landmarker.task' },
         runningMode: 'VIDEO', numFaces: want, outputFaceBlendshapes: true,
