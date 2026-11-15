@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { Helmet, Lyre, Owl, Rose, Ship, Trident } from '../ui/Art.jsx'
-import VoyageMap from './setup/VoyageMap.jsx'
+import VoyageMap, { isConquered } from './setup/VoyageMap.jsx'
 import { NUMERALS } from './setup/constants.js'
 import { Difficulty, HelmetIcon, HourglassIcon } from './setup/icons.jsx'
 import './setup/setup.css'
@@ -36,7 +36,10 @@ export default function SceneSelect({ onPick, onBack }) {
   const [scenes, setScenes] = useState(null)
   const [error, setError] = useState(null)
   const [hovered, setHovered] = useState(null)
+  const [progress, setProgress] = useState({})
   useEffect(() => { api.scenes().then(setScenes).catch((e) => setError(String(e))) }, [])
+  // Best run per trial (from the Hall of Heroes); progress is a nice-to-have, so failures are silent
+  useEffect(() => { api.progress().then(setProgress).catch(() => {}) }, [])
 
   // Film scenes first (hard modes last), then the scrolls; numerals follow that order everywhere.
   const hard = (s) => (s.difficulty === 'Hard' ? 1 : 0)
@@ -49,7 +52,8 @@ export default function SceneSelect({ onPick, onBack }) {
     const i = ordered.indexOf(s)
     return (
       <SceneCard key={s.id} s={s} n={NUMERALS[i]} emblem={SCENE_EMBLEMS[s.id] || EMBLEMS[i % EMBLEMS.length]}
-        on={hovered === s.id} start={i === 0 && hovered === null} onHover={setHovered} onPick={onPick} />
+        on={hovered === s.id} start={i === 0 && hovered === null && !progress[s.id]} onHover={setHovered} onPick={onPick}
+        best={progress[s.id]} />
     )
   }
   const row = useRef(null)
@@ -75,7 +79,8 @@ export default function SceneSelect({ onPick, onBack }) {
 
       {ordered.length > 0 && (
         <>
-          <VoyageMap scenes={ordered} hovered={hovered} onHover={hoverIsland} onPick={onPick} />
+          <VoyageMap scenes={ordered} hovered={hovered} onHover={hoverIsland} onPick={onPick} progress={progress} />
+          <VoyageTally scenes={ordered} progress={progress} />
           {many ? (
             <CardRow innerRef={row}>{ordered.map(card)}</CardRow>
           ) : (
@@ -126,7 +131,22 @@ function CardRow({ innerRef, children }) {
   )
 }
 
-function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
+function VoyageTally({ scenes, progress }) {
+  const conquered = scenes.filter((s) => isConquered(progress[s.id])).length
+  const tried = scenes.filter((s) => progress[s.id] && !isConquered(progress[s.id])).length
+  const pct = Math.round((100 * conquered) / scenes.length)
+  return (
+    <div className="sx-tally" aria-label={`${conquered} of ${scenes.length} trials conquered`}>
+      <span className="sx-tally-count"><strong>{conquered}</strong> of {scenes.length} trials conquered</span>
+      <span className="sx-tally-bar" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+      <span className="sx-tally-note">
+        {conquered === scenes.length ? 'You have reached Ithaca.' : tried ? `${tried} attempted · reach Oarsman of Ithaca to conquer` : 'Reach Oarsman of Ithaca to conquer a trial'}
+      </span>
+    </div>
+  )
+}
+
+function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick, best }) {
   const ref = useRef(null)
   const film = Boolean(s.video)
   const enter = () => {
@@ -159,6 +179,11 @@ function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
           <Emblem className="sx-emblem" />
         )}
         <span className="sx-num" aria-hidden="true">{n}</span>
+        {best && (
+          <span className={`sx-best ${isConquered(best) ? 'done' : ''}`} title={`Best: ${best.team_name}`}>
+            {isConquered(best) ? `★ ${best.rank} · ${best.kleos}` : `Attempted · best ${best.kleos}`}
+          </span>
+        )}
       </div>
       <div className="sx-body">
         <span className="sx-book">{s.book.split('·')[0].trim()}</span>

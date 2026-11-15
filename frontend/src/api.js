@@ -7,6 +7,7 @@ export const api = {
   health: () => fetch('/api/health').then(json),
   scenes: () => fetch('/api/scenes').then(json),
   scene: (id) => fetch(`/api/scenes/${id}`).then(json),
+  progress: () => fetch('/api/progress').then(json),
   leaderboard: (sceneId) => fetch(`/api/leaderboard${sceneId ? `?scene_id=${sceneId}` : ''}`).then(json),
   perform: ({ meta, audio, frames, video }) => {
     const fd = new FormData()

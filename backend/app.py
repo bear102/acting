@@ -112,6 +112,12 @@ def get_film_frame(scene_id: str, t: float = 0.0):
     return Response(jpg, media_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
 
 
+@app.get("/api/progress")
+def get_progress():
+    """Best run per scene, for the voyage chart on Choose your trial."""
+    return store.best_by_scene()
+
+
 @app.get("/api/leaderboard")
 def get_leaderboard(scene_id: str | None = None):
     return store.leaderboard(scene_id)
