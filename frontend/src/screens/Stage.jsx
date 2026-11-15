@@ -12,11 +12,6 @@ import useFullscreen from '../stage/useFullscreen.js'
 import '../stage/stage.css'
 import '../stage/stage-perf.css'
 
-const PRAISE = ['Ares approves!', 'Athena nods.', 'Apollo smiles upon you.', 'Zeus is watching…', 'Hermes takes note.', 'The Muse sings of this!']
-const STREAK_MS = 2500
-const PLAYER_COOLDOWN_MS = 9000
-const GLOBAL_COOLDOWN_MS = 4000
-
 export default function Stage({ scene, team, onCancel, onFinish }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -27,7 +22,6 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   const [t, setT] = useState(0)
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
-  const [toasts, setToasts] = useState([])
   const fullscreen = useFullscreen()
 
   const nPlayers = team.players.length
@@ -66,9 +60,6 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     const L = live.current
     L.tracker = new PlayerTracker(nPlayers)
     L.meter = Array(nPlayers).fill(null)
-    L.streakSince = Array(nPlayers).fill(null)
-    L.lastPraise = Array(nPlayers).fill(-Infinity)
-    L.lastAnyPraise = -Infinity
     L.poses = Array(nPlayers).fill(null)
     const labels = team.players.map((pl, i) => `${pl.name} · ${charsOf(i).map(charName).join('/')}`)
     // Pause decorative page animations (frame border, embers, torches) while on stage: stage.css
@@ -203,7 +194,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       stats.detectMsTotal += res.ms
       const dt = Math.min(0.25, (now - lastPoseResultAt) / 1000)
       lastPoseResultAt = now
-      if (hasRef) updateMeters(L.poses, getTime(), dt, now)
+      if (hasRef) updateMeters(L.poses, getTime(), dt)
       L.dirty = true
     }
 
@@ -221,7 +212,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
     // Rolling (~1s) similarity between each player and their film actor at this instant.
     // Purely numeric: nothing is drawn on the webcam, players copy the film itself.
-    function updateMeters(poses, st, dt, now) {
+    function updateMeters(poses, st, dt) {
       const fps = scene.reference.fps || FEATURE_FPS
       poses.forEach((lm, i) => {
         const c = guideCharacterFor(scene, charsOf(i), st)
@@ -232,26 +223,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         } else if (L.meter[i] != null) {
           L.meter[i] = Math.max(0, L.meter[i] - 8 * dt) // slowly fade while out of frame / actor off screen
         }
-        if (L.recording) praise(i, now)
       })
-    }
-
-    function praise(i, now) {
-      if ((L.meter[i] ?? 0) >= 72) {
-        L.streakSince[i] ??= now
-        if (now - L.streakSince[i] > STREAK_MS && now - L.lastPraise[i] > PLAYER_COOLDOWN_MS &&
-          now - L.lastAnyPraise > GLOBAL_COOLDOWN_MS) {
-          L.lastPraise[i] = now
-          L.lastAnyPraise = now
-          L.streakSince[i] = null
-          const id = now
-          const text = PRAISE[Math.floor(Math.random() * PRAISE.length)]
-          setToasts((ts) => [...ts, { id, text, color: PLAYER_COLORS[i], name: team.players[i].name }])
-          setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 2600)
-        }
-      } else {
-        L.streakSince[i] = null
-      }
     }
 
     // Overlay only: the camera itself is the <video> underneath (mirrored in CSS). The canvas
@@ -477,12 +449,16 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       {phase === 'ready' && (
         <div className="sg-overlay soft">
           <h2 className="sg-overlay-title">Take your places</h2>
-          <p>
-            Stand left to right, upper body in frame.
-            {hasFilm && ' Watch the film beside you: when the scene begins, copy the actors and speak their lines.'}
-          </p>
+          <div className="sg-places" role="status" aria-label={`${present.filter(Boolean).length} of ${nPlayers} in frame`}>
+            {team.players.map((p, i) => (
+              <div key={i} className={`sg-place ${present[i] ? 'here' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
+                <span className="sg-place-disc">{i + 1}</span>
+                <span className="sg-place-name">{p.name}</span>
+              </div>
+            ))}
+          </div>
           <div className="row center-row">
-            <button className="btn big" onClick={begin}>Action!</button>
+            <button className={`btn big ${team.players.every((_, i) => present[i]) ? 'sg-go' : ''}`} onClick={begin}>Action!</button>
           </div>
         </div>
       )}
@@ -492,14 +468,6 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
       {isLive && !hasFilm && <Prompter scene={scene} team={team} t={t} />}
       {isLive && <div className="sg-progress"><div style={{ width: `${progress * 100}%` }} /></div>}
-
-      <div className="sg-toasts">
-        {toasts.map((x) => (
-          <div key={x.id} className="sg-toast" style={{ '--pc': x.color }}>
-            <span className="sg-toast-name">{x.name}</span> {x.text}
-          </div>
-        ))}
-      </div>
     </div>
   )
 
@@ -566,8 +534,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 const Plaque = memo(function Plaque({ i, name, roles, present, meter, hasRef }) {
   const pct = meter ?? 0
   const label = !present ? 'Step into the light' : !hasRef ? 'In frame' : meter == null ? 'Watching the film…' : favorWord(pct)
+  const hot = hasRef && present && meter != null && meter >= 72
   return (
-    <div className={`sg-plaque ${present ? 'here' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
+    <div className={`sg-plaque ${present ? 'here' : ''} ${hot ? 'hot' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
       <div className="sg-plaque-top">
         <span className="sg-badge">{i + 1}</span>
         <div className="sg-plaque-names">

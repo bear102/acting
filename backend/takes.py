@@ -4,6 +4,7 @@ Layout: backend/data/takes/<UTC timestamp>_<scene_id>_<team-slug>/
     meta.json     full request meta (incl. 10 Hz pose/face features, browser transcript)
     audio.webm    the mic recording
     frame_<i>.jpg snapshots sent to Gemini
+    video.webm    the raw webcam recording (server-side pose analysis), when the browser sent one
     result.json   the score the game showed (without the Zeus mp3)
     label         optional, written by the team: "missed everything", "good", ...
 
@@ -30,7 +31,7 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:32] or "crew"
 
 
-def save_take(meta: dict, audio: bytes, frames: list[bytes], result: dict) -> Path | None:
+def save_take(meta: dict, audio: bytes, frames: list[bytes], result: dict, video: bytes = b"") -> Path | None:
     if not enabled():
         return None
     try:
@@ -40,6 +41,8 @@ def save_take(meta: dict, audio: bytes, frames: list[bytes], result: dict) -> Pa
         (folder / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
         if audio:
             (folder / "audio.webm").write_bytes(audio)
+        if video:
+            (folder / "video.webm").write_bytes(video)
         for i, f in enumerate(frames):
             (folder / f"frame_{i}.jpg").write_bytes(f)
         slim = {k: v for k, v in result.items() if k != "zeus_audio"}

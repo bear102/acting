@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { api } from './api.js'
+import { rollCrewName } from './crewNames.js'
 import Home from './screens/Home.jsx'
 import SceneSelect from './screens/SceneSelect.jsx'
 import TeamSetup from './screens/TeamSetup.jsx'
@@ -24,16 +25,19 @@ export default function App() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [snaps, setSnaps] = useState([]) // [{t, url}] the players' own snapshots, for the verdict reel
+  const [hallFrom, setHallFrom] = useState('home') // 'home' | 'verdict': where the Hall's back link returns to
+  const [lastTake, setLastTake] = useState(null) // the take being judged, kept so a failed upload can be resent
 
-  // Dev only: /?preview=verdict opens the verdict on a canned take, no camera or backend needed.
+  // Dev only: /?preview=verdict (or =judging) opens that screen on a canned take, no camera or backend needed.
   useEffect(() => {
-    if (!import.meta.env.DEV || new URLSearchParams(location.search).get('preview') !== 'verdict') return
+    const preview = new URLSearchParams(location.search).get('preview')
+    if (!import.meta.env.DEV || (preview !== 'verdict' && preview !== 'judging')) return
     import('./dev/mockVerdict.js').then((m) => {
       setScene(m.scene)
       setTeam(m.team)
       setSnaps(m.snaps)
-      setResult(m.result)
-      setScreen('verdict')
+      if (preview === 'verdict') setResult(m.result)
+      setScreen(preview)
     })
   }, [])
 
@@ -53,13 +57,13 @@ export default function App() {
     setScreen('team')
   }
 
-  const submit = async (take) => {
+  // Uploads a take. Resending after a failure calls this alone, so the snapshot URLs stay as they are.
+  const send = async (take) => {
     setScreen('judging')
     setError(null)
-    snaps.forEach((s) => URL.revokeObjectURL(s.url))
-    setSnaps(take.frames.map((blob, i) => ({ t: take.meta.snapshot_times[i], url: URL.createObjectURL(blob) })))
     try {
       setResult(await api.perform(take))
+      setLastTake(null)
       setScreen('verdict')
     } catch (e) {
       console.error(e)
@@ -68,15 +72,22 @@ export default function App() {
     }
   }
 
+  const submit = (take) => {
+    setLastTake(take)
+    snaps.forEach((s) => URL.revokeObjectURL(s.url))
+    setSnaps(take.frames.map((blob, i) => ({ t: take.meta.snapshot_times[i], url: URL.createObjectURL(blob) })))
+    return send(take)
+  }
+
   return (
     <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
     <div className={`app screen-${screen}`}>
-      {screen === 'home' && <Home onStart={() => setScreen('scenes')} onHall={() => setScreen('hall')} />}
+      {screen === 'home' && <Home onStart={() => setScreen('scenes')} onHall={() => { setHallFrom('home'); setScreen('hall') }} />}
       {screen === 'scenes' && <SceneSelect onPick={pickScene} onBack={() => setScreen('home')} />}
       {screen === 'team' && (
         <TeamSetup scene={scene} initial={team} onBack={() => setScreen('scenes')}
-          onReady={(t) => { setTeam(t); setScreen('rehearse') }} />
+          onReady={(t) => { setTeam(t.name === 'Nameless Crew' ? { ...t, name: rollCrewName() } : t); setScreen('rehearse') }} />
       )}
       {screen === 'rehearse' && (
         <Rehearse scene={scene} team={team} onBack={() => setScreen('team')} onGo={() => setScreen('stage')} />
@@ -86,23 +97,34 @@ export default function App() {
           <Stage scene={scene} team={team} onCancel={() => setScreen('rehearse')} onFinish={submit} />
         </Suspense>
       )}
-      {screen === 'judging' && <Judging />}
+      {screen === 'judging' && <Judging snaps={snaps} />}
       {screen === 'stage-error' && (
         <div className="panel center tablet">
           <Trident className="err-art" />
           <h2>Poseidon swallowed your performance</h2>
-          <p className="muted">{error}</p>
-          <p>Is the backend running on port 8000?</p>
-          <button className="btn" onClick={() => setScreen('stage')}>Try the scene again</button>
+          {lastTake && <p>Your take is safe.</p>}
+          <div className="row center-row">
+            {lastTake && <button className="btn" onClick={() => send(lastTake)}>Send it again</button>}
+            <button className="btn ghost" onClick={() => setScreen('stage')}>Perform again</button>
+          </div>
+          <details className="muted small"><summary>Details</summary>{error}</details>
         </div>
       )}
-      {screen === 'verdict' && (
-        <Verdict result={result} scene={scene} team={team} snaps={snaps}
-          onRetry={() => setScreen('stage')}
-          onNew={() => setScreen('scenes')}
-          onHall={() => setScreen('hall')} />
+      {/* Stays mounted (hidden) under the Hall, so coming back does not replay the reveal or lose its progress chips. */}
+      {result && (screen === 'verdict' || (screen === 'hall' && hallFrom === 'verdict')) && (
+        <div hidden={screen !== 'verdict'}>
+          <Verdict result={result} scene={scene} team={team} snaps={snaps}
+            onRetry={() => setScreen('stage')}
+            onNew={() => setScreen('scenes')}
+            onHome={() => { setTeam(null); setResult(null); setScreen('home') }}
+            onHall={() => { setHallFrom('verdict'); setScreen('hall'); window.scrollTo(0, 0) }} />
+        </div>
       )}
-      {screen === 'hall' && <Leaderboard onBack={() => setScreen('home')} highlight={result} />}
+      {screen === 'hall' && (
+        <Leaderboard highlight={hallFrom === 'verdict' ? result : null}
+          onBack={() => { setScreen(hallFrom); window.scrollTo(0, 0) }}
+          onRetry={hallFrom === 'verdict' ? () => setScreen('stage') : null} />
+      )}
     </div>
     </OdysseyFrame>
   )

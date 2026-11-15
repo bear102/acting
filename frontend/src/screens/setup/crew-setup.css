@@ -1,0 +1,121 @@
+/* Crew setup ("who plays whom"): one row of character cards, a slim toolbar, one CTA.
+   Laptop first: everything fits 1280x620 without scrolling. Classes prefixed cs- */
+
+.cs {
+  max-width: 980px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  gap: clamp(12px, 2.4vh, 22px);
+  /* fill the viewport inside the Odyssey frame + app padding and center vertically */
+  min-height: calc(100dvh - 2 * var(--f, 21px) - clamp(36px, 7.6vh, 80px));
+  justify-content: center;
+  padding-bottom: 4vh; /* sit slightly above true center */
+}
+
+/* ---- header */
+.cs-head { text-align: center; }
+.cs-head h2 { margin: .25em 0 .1em; font-size: clamp(1.6rem, 4.6vh, 2.4rem); line-height: 1.15; }
+.cs-sub { margin: 0; color: var(--muted); font-style: italic; font-size: 1.08rem; }
+
+/* ---- toolbar: crew name + player count */
+.cs-bar { display: flex; align-items: center; justify-content: center; gap: 14px 22px; flex-wrap: wrap; }
+.cs-crew {
+  width: 280px; padding: 9px 14px; border-radius: 999px;
+  background: rgba(7, 11, 23, .55); border: 1px solid rgba(232, 184, 74, .35); color: var(--marble);
+  font: 1rem 'EB Garamond', serif;
+}
+.cs-crew::placeholder { color: var(--muted); font-style: italic; }
+.cs-crew:focus { outline: 2px solid var(--gold-soft); outline-offset: 1px; border-color: transparent; }
+
+.cs-count {
+  display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 14px;
+  border-radius: 999px; background: rgba(7, 11, 23, .55); border: 1px solid rgba(232, 184, 74, .35);
+}
+.cs-count span { font: 600 .8rem 'Cinzel', serif; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-soft); margin-right: 6px; }
+.cs-count button {
+  width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
+  font: 700 1rem 'Cinzel', serif; color: var(--marble); background: transparent;
+  transition: background .15s, color .15s;
+}
+.cs-count button:hover { background: rgba(232, 184, 74, .15); }
+.cs-count button.on { background: var(--gold); color: var(--ink); }
+.cs-count button:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+
+/* ---- the cards */
+.cs-cards {
+  width: 100%;
+  display: grid; gap: clamp(12px, 1.8vw, 20px);
+  grid-template-columns: repeat(var(--n, 3), minmax(0, 300px));
+  justify-content: center;
+}
+.cs-card {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 18px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(30, 47, 82, .72), rgba(10, 16, 32, .82));
+  border: 1px solid rgba(232, 184, 74, .25); border-top: 4px solid var(--pc);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+  animation: cs-rise .4s ease both;
+}
+.cs-card:nth-child(2) { animation-delay: .05s; }
+.cs-card:nth-child(3) { animation-delay: .1s; }
+.cs-card:focus-within { border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc), 0 10px 26px rgba(0, 0, 0, .35); }
+
+.cs-card-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cs-mask { width: 46px; height: 46px; flex: none; color: var(--pc); }
+.cs-char { display: flex; flex-direction: column; min-width: 0; }
+.cs-char strong { font: 700 1.2rem 'Cinzel', serif; color: var(--marble); line-height: 1.2; }
+.cs-char small {
+  color: var(--muted); font-size: .9rem; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.cs-player { display: flex; align-items: center; gap: 8px; margin-top: auto; min-width: 0; }
+.cs-num {
+  width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: var(--pc); color: var(--ink); font: 700 1rem 'Cinzel', serif;
+}
+.cs-pick {
+  flex: none; width: auto; padding: 7px 8px; border-radius: 10px; cursor: pointer;
+  background: var(--pc); color: var(--ink); border: 0; font: 700 .85rem 'Cinzel', serif;
+}
+.cs-pick:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+.cs-name {
+  flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px;
+  background: rgba(7, 11, 23, .6); border: 1px solid color-mix(in srgb, var(--pc) 55%, transparent);
+  color: var(--marble); font: 600 1.05rem 'EB Garamond', serif;
+}
+.cs-name::placeholder { color: color-mix(in srgb, var(--pc) 70%, var(--muted)); font-weight: 400; font-style: italic; }
+.cs-name:focus { outline: 2px solid var(--pc); outline-offset: 1px; border-color: transparent; }
+.cs-also { flex: 1; color: var(--pc); font-style: italic; padding: 8px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- standing order */
+.cs-order {
+  margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 10px;
+  color: var(--muted); font-size: .95rem;
+}
+.cs-arrow { color: var(--gold); }
+.cs-order-p { color: var(--pc); font-weight: 600; }
+
+/* ---- actions */
+.cs-actions { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.cs-actions .btn.big { min-width: 220px; }
+.cs-warn { margin: -6px 0 0; color: var(--bad); font-size: .92rem; }
+
+@keyframes cs-rise { from { opacity: 0; transform: translateY(8px); } }
+
+/* short laptop screens */
+@media (max-height: 700px) {
+  .cs { gap: 12px; padding-bottom: 2vh; }
+  .cs-card { padding: 14px 14px 12px; gap: 10px; }
+  .cs-sub { font-size: 1rem; }
+}
+
+/* narrow (fallback) */
+@media (max-width: 760px) {
+  .cs-cards { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+  .cs-crew { width: 100%; }
+  .cs-bar { width: 100%; max-width: 420px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-card { animation: none; }
+}
