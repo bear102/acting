@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { PLAYER_COLORS } from '../playerColors.js'
 import { rollCrewName } from '../crewNames.js'
 import { CameraGlyph, Chevron, DiceGlyph, StageMask } from './setup/CrewArt.jsx'
+import { charPortrait } from '../ui/charArt.js'
 import './setup/crew-setup.css'
 
 // The screen is the stage. One column per player, left to right in the order they stand before
@@ -131,7 +132,11 @@ export default function TeamSetup({ scene, initial, onReady, onBack }) {
                             <Chevron dir={dir} />
                           </button>
                         ))}
-                        <span className="cs-medal"><StageMask tragic={ci % 2 === 1} className="cs-mask" /></span>
+                        <span className={`cs-medal${charPortrait(scene.id, c.id) ? ' has-portrait' : ''}`}>
+                          {charPortrait(scene.id, c.id)
+                            ? <img className="cs-portrait" src={charPortrait(scene.id, c.id)} alt="" width="84" height="84" decoding="async" />
+                            : <StageMask tragic={ci % 2 === 1} className="cs-mask" />}
+                        </span>
                         <h3 className="cs-char">{c.name}</h3>
                         <p className="cs-desc" title={c.description}>{c.description}</p>
                         {n > 0 && <span className="cs-lines">{n} {n === 1 ? 'line' : 'lines'}</span>}

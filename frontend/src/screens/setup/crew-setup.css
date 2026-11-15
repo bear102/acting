@@ -101,6 +101,9 @@
 }
 .cs-card:hover .cs-medal { transform: rotate(-5deg) scale(1.05); }
 .cs-mask { width: 68%; height: 68%; color: var(--ink); }
+/* painted portrait medallion replaces the drawn mask: it brings its own disc and gold rim */
+.cs-medal.has-portrait { background: none; }
+.cs-portrait { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .cs-char {
   margin: clamp(8px, 1.6vh, 14px) 0 2px; font: 700 clamp(1.05rem, 2.7vh, 1.3rem)/1.15 'Cinzel', serif;
   color: var(--marble); overflow-wrap: anywhere;
