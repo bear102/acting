@@ -141,9 +141,9 @@
 }
 /* short laptop screens (1366x768, 1280x720): size the film and the script against the CTA row
    so "Take the stage" clears the painted bottom frame */
-@media (max-height: 800px) and (min-width: 901px) {
+@media (max-height: 800px) and (min-height: 681px) and (min-width: 901px) {
   .ss-cast-strip { margin-bottom: 8px; }
-  .ss-frame-inner { --fw: min(100cqw, calc((100vh - 400px) * 1.574)); }
+  .ss-frame-inner { --fw: min(100cqw, calc((100vh - 385px) * 1.574)); }
   .ss-papyrus { max-height: max(240px, calc(100vh - 360px)); }
   .ss-rehearse-single .ss-papyrus { max-height: max(200px, calc(100vh - 360px)); }
 }
