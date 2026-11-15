@@ -6,8 +6,14 @@
 // Fallback (no Worker/OffscreenCanvas/createImageBitmap, worker init failure, or ?detect=main):
 // the original main-thread landmarkers, fed a downscaled canvas and rate-limited.
 //
+// Hybrid tracking: when the browser can record the webcam (MediaRecorder video), the server runs
+// the full pose + face analysis on the recorded take, so live tracking is LIGHT: pose_landmarker_lite
+// only, ~15 Hz, no face landmarker (enough for name tags, the faint skeleton and the favor meter).
+// Without video recording the old full live path (pose + face) is kept so faces are still scored.
+//
 // URL knobs (for venue tuning): ?lite=1 (or ?pose=lite) forces the lite pose model,
-// ?detect=main forces main-thread detection.
+// ?detect=main forces main-thread detection, ?light=0 forces the full live path,
+// ?delegate=gpu, ?poseWorkers=N, ?input=bitmap (see stageOptions).
 import { loadLandmarkers } from '../vision.js'
 
 const DETECT_WIDTH = 640 // landmarks are normalized, so a smaller input only changes cost
@@ -23,12 +29,19 @@ export function stageOptions() {
     // decode and the compositor for the iGPU (dropped film frames, stalls), so workers default to
     // the CPU (XNNPACK) delegate. ?delegate=gpu tries the GPU first.
     delegate: q.get('delegate') === 'gpu' ? 'GPU' : 'CPU',
-    // MediaPipe's CPU WASM is single-threaded: round-robin pose frames over 2 workers when the
-    // machine has the cores (roughly doubles pose detections/s). ?poseWorkers=N overrides.
     bitmapInput: q.get('input') === 'bitmap', // A/B knob for the ImageData path in the worker
-    poseWorkers: Math.max(1, Math.min(3, +(q.get('poseWorkers') ||
-      ((navigator.hardwareConcurrency || 4) >= 8 ? 2 : 1)))),
+    light: q.get('light') === '0' ? false : videoRecordingMime() != null,
+    // MediaPipe's CPU WASM is single-threaded: in the full path, round-robin pose frames over 2
+    // workers when the machine has the cores (roughly doubles pose detections/s).
+    poseWorkers: q.get('poseWorkers') ? Math.max(1, Math.min(3, +q.get('poseWorkers'))) : null,
   }
+}
+
+/** Best supported MediaRecorder type for the take's webcam video, or null if video can't be recorded. */
+export function videoRecordingMime() {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return null
+  return ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm']
+    .find((m) => MediaRecorder.isTypeSupported(m)) || null
 }
 
 // Several identical pose workers used round-robin. Results can come back out of order, so each
@@ -146,36 +159,65 @@ class MainLane {
  * Returns { mode, model, delegate, pose, face, destroy } where pose/face are lanes with
  * submit(video, ts) -> Promise<result|null>, busy, avgMs, count, msTotal.
  */
-export async function createDetector(players) {
+let warm = null // { players, promise } started by preloadDetector()
+
+/**
+ * Start the detector (workers + WASM + models, ~1-3 s) ahead of the stage, e.g. during Team setup
+ * or Rehearsal. Idempotent; the next createDetector(players) with the same team size adopts it.
+ */
+export function preloadDetector(players) {
+  if (!warm || warm.players !== players) {
+    warm?.promise.then((d) => d.destroy()).catch(() => {})
+    const promise = buildDetector(players)
+    promise.catch(() => { if (warm?.promise === promise) warm = null })
+    warm = { players, promise }
+  }
+  return warm.promise
+}
+
+export function createDetector(players) {
+  if (warm && warm.players === players) {
+    const { promise } = warm
+    warm = null // a detector belongs to one stage; the stage destroys it on unmount
+    return promise.catch(() => buildDetector(players))
+  }
+  return buildDetector(players)
+}
+
+async function buildDetector(players) {
   const opts = stageOptions()
   const num = Math.min(players + 1, 5)
+  const light = opts.light
+  const lite = light || opts.lite
+  const nPose = opts.poseWorkers ?? (light ? 1 : (navigator.hardwareConcurrency || 4) >= 8 ? 2 : 1)
   const canWorker = opts.mode === 'worker' && typeof Worker !== 'undefined' &&
     typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap !== 'undefined'
   if (canWorker) {
-    const poseLanes = Array.from({ length: opts.poseWorkers }, () => new WorkerLane('pose'))
+    const poseLanes = Array.from({ length: nPose }, () => new WorkerLane('pose'))
     const pose = new PoolLane(poseLanes)
-    const face = new WorkerLane('face')
+    const face = light ? null : new WorkerLane('face')
     try {
       const infos = await Promise.all([
-        ...poseLanes.map((l) => l.init(num, opts.lite ? 'lite' : 'full', opts.delegate)),
-        face.init(num, undefined, opts.delegate),
+        ...poseLanes.map((l) => l.init(num, lite ? 'lite' : 'full', opts.delegate)),
+        ...(face ? [face.init(num, undefined, opts.delegate)] : []),
       ])
       const pi = infos[0]
-      const fi = infos[infos.length - 1]
+      const fi = face ? infos[infos.length - 1] : null
       return {
-        mode: 'worker', model: pi.model, delegate: `${pi.delegate}x${poseLanes.length}/${fi.delegate}`, pose, face,
-        destroy() { pose.destroy(); face.destroy() },
+        mode: 'worker', light, model: pi.model, pose, face,
+        delegate: `${pi.delegate}x${poseLanes.length}${fi ? `/${fi.delegate}` : ' (no face)'}`,
+        destroy() { pose.destroy(); face?.destroy() },
       }
     } catch (e) {
       console.warn('Worker detection unavailable, falling back to main thread', e)
       pose.destroy()
-      face.destroy()
+      face?.destroy()
     }
   }
-  const m = await loadLandmarkers(players, { lite: opts.lite })
+  const m = await loadLandmarkers(players, { lite })
   const canvas = document.createElement('canvas')
   return {
-    mode: 'main', model: m.model, delegate: 'main', pose: new MainLane('pose', m.pose, canvas),
-    face: new MainLane('face', m.face, canvas), destroy() {},
+    mode: 'main', light, model: m.model, delegate: 'main', pose: new MainLane('pose', m.pose, canvas),
+    face: light ? null : new MainLane('face', m.face, canvas), destroy() {},
   }
 }

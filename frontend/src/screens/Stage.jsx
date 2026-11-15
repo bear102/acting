@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
 } from '../vision.js'
-import { createDetector } from '../stage/detector.js'
+import { createDetector, videoRecordingMime } from '../stage/detector.js'
 import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
 import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
@@ -93,6 +93,20 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         stats.model = det.model
         stats.mode = det.mode
         stats.delegate = det.delegate
+        stats.light = det.light
+        // Hybrid tracking: the take's webcam video is recorded for full server-side analysis.
+        // A clone of the camera track downscaled by the browser (no main-thread drawing), raw
+        // orientation (not mirrored), prepared now so the recording starts at the final size.
+        L.videoMime = videoRecordingMime()
+        const cam = stream.getVideoTracks()[0]
+        if (L.videoMime && cam) {
+          const vt = cam.clone()
+          // max (not ideal) makes the browser's track adapter actually scale the clone down
+          await vt.applyConstraints({ width: { max: 640 }, height: { max: 360 }, frameRate: { max: 24 } })
+            .catch(() => { /* keep the clone at camera size */ })
+          if (cancelled) { vt.stop(); return }
+          L.videoTrack = vt
+        }
         setPhase('ready')
         raf = requestAnimationFrame(loop)
       } catch (e) {
@@ -124,9 +138,12 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
     // Target detection rates. Worker lanes run as fast as they can up to these; on the main
     // thread (fallback) every detection blocks rendering, so stay well below the frame rate.
-    const rates = () => (L.det.mode === 'worker'
-      ? { pose: 30, face: nPlayers >= 3 ? 8 : 12 }
-      : { pose: 12, face: nPlayers >= 3 ? 4 : 6 })
+    // Light (hybrid) mode: the server analyses the recorded video, live only needs ~15 Hz pose.
+    const rates = () => (L.det.light
+      ? { pose: L.det.mode === 'worker' ? 15 : 10, face: 0 }
+      : L.det.mode === 'worker'
+        ? { pose: 30, face: nPlayers >= 3 ? 8 : 12 }
+        : { pose: 12, face: nPlayers >= 3 ? 4 : 6 })
 
     function loop() {
       const v = videoRef.current
@@ -162,7 +179,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         pose.submit(v, now).then((res) => { if (res && !cancelled) onPose(res, now) })
         if (L.det.mode === 'main') return // at most one blocking detection per frame
       }
-      if (!face.busy && now - lastFaceAt >= 1000 / r.face) {
+      if (face && !face.busy && now - lastFaceAt >= 1000 / r.face) {
         lastFaceAt = now
         face.submit(v, now).then((res) => {
           if (!res || cancelled) return
@@ -252,7 +269,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     function drawDebug(canvas, now) {
       const ctx = canvas.getContext('2d')
       const rows = [
-        `${stats.mode} · ${stats.model} · ${stats.delegate} · ui ${stats.fps.toFixed(0)} fps`,
+        `${stats.mode}${stats.light ? ' · light (server analyses video)' : ''} · ${stats.model} · ${stats.delegate} · ui ${stats.fps.toFixed(0)} fps`,
         `pose ${stats.poseHz.toFixed(0)}/s ${stats.poseMs.toFixed(0)}ms · face ${stats.faceMs.toFixed(0)}ms · detections ${L.tracker.lastDetections}`,
         `players ${nPlayers} · ${L.tracker.locked ? 'LOCKED' : 'settling order'}`,
         ...L.tracker.debug(now).map((d) => `P${d.slot + 1} ${team.players[d.slot].name}: ${d.age == null ? 'never seen'
@@ -306,6 +323,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       document.body.classList.remove('stage-live')
       L.recording = false
       try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
+      try { if (L.videoRecorder?.state === 'recording') L.videoRecorder.stop() } catch { /* already stopped */ }
+      L.videoTrack?.stop()
       try { L.speech?.abort() } catch { /* not running */ }
       L.det?.destroy()
       stream?.getTracks().forEach((tr) => tr.stop())
@@ -346,6 +365,22 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.recorder.ondataavailable = (e) => e.data.size && L.chunks.push(e.data)
     L.recorder.start(500)
 
+    // Webcam video (no audio) for the server's pose + face analysis; started with the audio.
+    L.videoChunks = []
+    L.videoRecorder = null
+    L.videoStartAt = null
+    if (L.videoTrack) {
+      try {
+        const vr = new MediaRecorder(new MediaStream([L.videoTrack]), { mimeType: L.videoMime, videoBitsPerSecond: 1_200_000 })
+        vr.ondataavailable = (e) => e.data.size && L.videoChunks.push(e.data)
+        vr.onstart = () => { L.videoStartAt = performance.now() }
+        vr.start(1000)
+        L.videoRecorder = vr
+      } catch (e) {
+        console.warn('Video recording unavailable; scoring falls back to live features', e)
+      }
+    }
+
     // Browser speech recognition: free backup ears if the server-side STT is unavailable
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (SR) {
@@ -380,11 +415,17 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.recording = false
     setPhase('sending')
     try { L.speech?.stop() } catch { /* already stopped */ }
-    const audio = await new Promise((resolve) => {
-      if (L.recorder.state === 'inactive') return resolve(new Blob(L.chunks, { type: 'audio/webm' }))
-      L.recorder.onstop = () => resolve(new Blob(L.chunks, { type: L.recorder.mimeType || 'audio/webm' }))
-      L.recorder.stop()
+    const stopRec = (rec, chunks, type) => new Promise((resolve) => {
+      if (!rec) return resolve(null)
+      if (rec.state === 'inactive') return resolve(new Blob(chunks, { type }))
+      rec.onstop = () => resolve(new Blob(chunks, { type: rec.mimeType || type }))
+      rec.stop()
     })
+    const [audio, recorded] = await Promise.all([
+      stopRec(L.recorder, L.chunks, 'audio/webm'),
+      stopRec(L.videoRecorder, L.videoChunks, 'video/webm'),
+    ])
+    const video = recorded && recorded.size > 1000 ? recorded : null
     if (L.snaps.length === 0) L.snapshot(L.lastT)
     // Keep frames and their times paired even if a toBlob() failed
     const blobs = await Promise.all(L.snaps)
@@ -403,8 +444,13 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         features: { fps: FEATURE_FPS, players: L.features },
         browser_transcript: L.transcript,
         snapshot_times: snapshotTimes,
+        ...(video && {
+          video_offset_s: L.videoStartAt != null ? +((L.videoStartAt - L.start) / 1000).toFixed(3) : 0,
+          video_mirrored: false,
+        }),
       },
       audio,
+      video,
       frames,
     })
   }

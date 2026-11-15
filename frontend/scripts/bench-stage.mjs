@@ -9,7 +9,9 @@
 // Run (from frontend/):
 //   npm run build
 //   node scripts/bench-stage.mjs --cam <people.mjpeg> [--mic <voice.wav>] [--scene beggar-in-the-hall]
-//        [--seconds 10] [--headed] [--query "lite=1"] [--label before]
+//        [--seconds 10] [--headed] [--query "lite=1"] [--label before] [--verify] [--save-video take.webm]
+//   --verify runs the take to the end and checks the payload sent to /api/perform (10 Hz feature
+//   grid, 21-float frames, snapshot pairing, audio and webcam video uploads).
 // Needs playwright-core (npm i -D playwright-core, or set PLAYWRIGHT_CORE=<path to its index.js>)
 // and Google Chrome (or CHROME_PATH). Make a fake camera clip with ffmpeg, e.g. from any video:
 //   ffmpeg -i people.mp4 -t 10 -vf "scale=1280:720,fps=30,format=yuvj420p" -c:v mjpeg -q:v 5 -f mjpeg people.mjpeg
@@ -94,8 +96,17 @@ try {
   await page.route('**/api/perform', (r) => {
     const body = r.request().postDataBuffer()?.toString('latin1') || ''
     const m = body.match(/name="meta"\r\n\r\n([\s\S]*?)\r\n--/)
+    const part = (name) => {
+      const i = body.indexOf(`name="${name}"`)
+      if (i < 0) return null
+      const start = body.indexOf('\r\n\r\n', i) + 4
+      const end = body.indexOf('\r\n--', start)
+      return Buffer.from(body.slice(start, end), 'latin1')
+    }
+    const video = part('video')
+    if (video && args['save-video']) fs.writeFileSync(args['save-video'], video)
     submitted = { meta: m ? JSON.parse(m[1]) : null, frames: (body.match(/name="frames"/g) || []).length,
-      audioBytes: (body.split('name="audio"')[1] || '').length }
+      audioBytes: part('audio')?.length ?? 0, videoBytes: video?.length ?? 0 }
     r.fulfill({ status: 500, body: 'bench' })
   })
   await page.route('**/media/**', (r) => {
@@ -191,6 +202,7 @@ try {
       (p.faceLen === 0 || p.faceLen === 21)) && m.snapshot_times.length === submitted.frames && submitted.audioBytes > 1000
     console.log(JSON.stringify({ verify: ok ? 'OK' : 'FAIL', duration: +m.duration.toFixed(2), expectedSamples: expected,
       players: per, snapshots: m.snapshot_times, frames: submitted.frames, audioBytes: submitted.audioBytes,
+      videoBytes: submitted.videoBytes, videoOffset: m.video_offset_s, videoMirrored: m.video_mirrored,
       transcriptSegments: m.browser_transcript.length }))
     if (!ok) process.exitCode = 1
   }
