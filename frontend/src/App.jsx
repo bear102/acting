@@ -10,6 +10,7 @@ import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
 import Backdrop from './ui/Backdrop.jsx'
 import { Trident } from './ui/Art.jsx'
+import OdysseyFrame from './theme/OdysseyFrame.jsx'
 
 // Screen flow: home -> scenes -> team -> rehearse -> stage -> judging -> verdict
 export default function App() {
@@ -38,7 +39,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
     <div className={`app screen-${screen}`}>
       {screen === 'home' && <Home onStart={() => setScreen('scenes')} onHall={() => setScreen('hall')} />}
@@ -71,6 +72,6 @@ export default function App() {
       )}
       {screen === 'hall' && <Leaderboard onBack={() => setScreen('home')} highlight={result} />}
     </div>
-    </>
+    </OdysseyFrame>
   )
 }
