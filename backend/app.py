@@ -25,6 +25,7 @@ import reel  # noqa: E402
 import scoring  # noqa: E402
 import store  # noqa: E402
 import takes  # noqa: E402  (saves every take for offline re-scoring)
+import video_analysis  # noqa: E402  (server-side MediaPipe on the recorded take)
 from features import audio_contours, decode_audio  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
@@ -52,6 +53,9 @@ async def warm_up():
         # Load (and on first run download) the Whisper model now, without blocking startup.
         threading.Thread(target=lambda: local_stt.transcribe_pcm(np.zeros(32000, dtype="float32")),
                          daemon=True).start()
+    # Spin up the pose-analysis worker processes (MediaPipe import ~2-3 s each) in the background.
+    import threading as _th
+    _th.Thread(target=video_analysis.warm_pool, daemon=True).start()
 
 
 def load_scenes() -> dict[str, dict]:
@@ -112,7 +116,7 @@ def get_leaderboard(scene_id: str | None = None):
 
 @app.post("/api/perform")
 async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
-                  frames: list[UploadFile] = File(default=[])):
+                  frames: list[UploadFile] = File(default=[]), video: UploadFile | None = File(None)):
     m = json.loads(meta)
     scene = load_scenes().get(m["scene_id"])
     if not scene:
@@ -120,6 +124,9 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
 
     audio_bytes = await audio.read() if audio else b""
     frame_bytes = [await f.read() for f in frames]
+    video_bytes = await video.read() if video else b""
+    # Full-model pose + face analysis of the recorded webcam, concurrently with STT and judging prep.
+    video_task = asyncio.ensure_future(run_in_threadpool(_analyze_video, video_bytes, m)) if video_bytes else None
 
     # Film stills at the moments the players were snapshotted, for Gemini's side-by-side critique.
     # Extracted (or read from cache) in the background while we transcribe and judge.
@@ -149,7 +156,7 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     # --- the four judges (CPU-bound, off the event loop)
     contours = await run_in_threadpool(_contours, pcm)
     assignments = {c: int(p) for c, p in m["assignments"].items()}
-    players = m["features"]["players"]
+    players, tracking = await _choose_features(video_task, m)
 
     def judge():
         athena = scoring.judge_athena(scene, words)
@@ -195,7 +202,7 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
         "team_name": m.get("team_name") or "Nameless Crew", "team_size": len(names),
         **overall, "judges": judges, "stars": stars, "verdict": words_said,
         "transcript": heard_text, "stt_source": stt_source, "critic": critic,
-        "reel": the_reel, "hall": None,
+        "reel": the_reel, "hall": None, "tracking": tracking,
     }
     run = {k: result[k] for k in ("scene_id", "scene_title", "team_name", "team_size", "score", "kleos", "rank")} | {
         "epithet": words_said.get("epithet"), "judges": {k: v["score"] for k, v in judges.items()}}
@@ -208,7 +215,7 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     # --- save the take for calibration (tools/replay_takes.py); background thread, never fails a round
     try:
         import threading
-        threading.Thread(target=takes.save_take, args=(m, audio_bytes, frame_bytes, result), daemon=True).start()
+        threading.Thread(target=takes.save_take, args=(m, audio_bytes, frame_bytes, result, video_bytes), daemon=True).start()
     except Exception as e:  # noqa: BLE001
         log.warning("Could not start take save: %s", e)
     return result
@@ -224,6 +231,36 @@ def apply_critic(overall: dict, critic: dict) -> dict:
     rank = next(name for floor, name in scoring.RANKS if raw >= floor)
     critic["base_score"] = overall["score"]
     return {**overall, "score": round(raw), "kleos": round(raw * 10), "rank": rank}
+
+
+def _take_duration(m: dict) -> float:
+    if m.get("duration"):
+        return float(m["duration"])
+    players = (m.get("features") or {}).get("players") or [{}]
+    return len(players[0].get("pose") or []) / 10 or 1.0
+
+
+def _analyze_video(video_bytes: bytes, m: dict) -> dict:
+    n = max(1, len(m.get("players") or []) or len((m.get("features") or {}).get("players", [])) or 1)
+    return video_analysis.analyze_take_video(
+        video_bytes, n, _take_duration(m), float(m.get("video_offset_s") or 0.0), bool(m.get("video_mirrored")))
+
+
+async def _choose_features(video_task, m: dict) -> tuple[list, dict]:
+    """Server analysis of the recorded video when it is usable, else the browser's live samples."""
+    client = (m.get("features") or {}).get("players") or []
+    if video_task is None:
+        return client, {"source": "client", "reason": "no video uploaded"}
+    try:
+        res = await video_task
+    except Exception as e:  # noqa: BLE001
+        log.warning("Video analysis failed, using browser features: %s", e)
+        return client, {"source": "client", "reason": f"analysis failed: {e}"}
+    ok, why = video_analysis.usable(res["stats"])
+    if ok or not client:
+        return res["features"]["players"], {"source": "server", **res["stats"]}
+    log.info("Server tracking not usable (%s); using browser features", why)
+    return client, {"source": "client", "reason": why, **res["stats"]}
 
 
 def _char_name(scene, cid):
