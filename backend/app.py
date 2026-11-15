@@ -4,6 +4,7 @@ Run:  ..\\.venv\\Scripts\\uvicorn app:app --reload --port 8000   (from backend/)
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
+import film_frames  # noqa: E402
 import oracle  # noqa: E402
 import scoring  # noqa: E402
 import store  # noqa: E402
@@ -105,6 +107,11 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     audio_bytes = await audio.read() if audio else b""
     frame_bytes = [await f.read() for f in frames]
 
+    # Film stills at the moments the players were snapshotted, for Gemini's side-by-side critique.
+    # Extracted (or read from cache) in the background while we transcribe and judge.
+    times = film_frames.snapshot_times(m, scene, len(frame_bytes))
+    film_task = asyncio.ensure_future(run_in_threadpool(film_frames.film_pairs, scene, SCENES_DIR, times))
+
     pcm = await run_in_threadpool(_decode, audio_bytes)
 
     # --- ears: ElevenLabs Scribe -> local Whisper -> the browser's own speech recognition
@@ -155,25 +162,43 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
                       "score": round(sum(parts) / len(parts)) if parts else 0})
 
     cast = ", ".join(f"{s['name']} as {'/'.join(_char_name(scene, c) for c in s['characters'])}" for s in stars)
+    try:
+        pairs = await film_task
+    except Exception as e:  # noqa: BLE001
+        log.warning("Film frame extraction failed: %s", e)
+        pairs = []
     words_said = await oracle.verdict(scene, m.get("team_name", "Nameless Crew"), cast, heard_text,
-                                      judges, overall, frame_bytes)
-    zeus_audio = await oracle.speak(words_said["zeus"])
+                                      judges, overall, frame_bytes, pairs)
+    critic = words_said.pop("critic", None)
+    if critic:
+        overall = apply_critic(overall, critic)
 
     result = {
         "scene_id": scene["id"], "scene_title": scene["title"],
         "team_name": m.get("team_name") or "Nameless Crew", "team_size": len(names),
         **overall, "judges": judges, "stars": stars, "verdict": words_said,
-        "transcript": heard_text, "stt_source": stt_source,
+        "transcript": heard_text, "stt_source": stt_source, "critic": critic,
     }
-    try:
-        await run_in_threadpool(store.save_run, {
-            k: result[k] for k in ("scene_id", "scene_title", "team_name", "team_size", "score", "kleos", "rank")
-        } | {"epithet": words_said.get("epithet"),
-             "judges": {k: v["score"] for k, v in judges.items()}})
-    except Exception as e:  # noqa: BLE001
-        log.warning("Could not save run: %s", e)
-    result["zeus_audio"] = zeus_audio
+    run = {k: result[k] for k in ("scene_id", "scene_title", "team_name", "team_size", "score", "kleos", "rank")} | {
+        "epithet": words_said.get("epithet"), "judges": {k: v["score"] for k, v in judges.items()}}
+    zeus_audio, saved = await asyncio.gather(oracle.speak(words_said["zeus"]),
+                                             run_in_threadpool(store.save_run, run), return_exceptions=True)
+    if isinstance(saved, BaseException):
+        log.warning("Could not save run: %s", saved)
+    result["zeus_audio"] = None if isinstance(zeus_audio, BaseException) else zeus_audio
     return result
+
+
+def apply_critic(overall: dict, critic: dict) -> dict:
+    """Gemini's side-by-side acting critique as a small 5th component:
+    score = 0.9 * judges' total + 0.1 * (mean acting 0-10 scaled to 0-100) + muse_bonus, clamped 0-100."""
+    marks = [v["score"] for v in critic["acting"].values()]
+    acting100 = 10 * sum(marks) / len(marks)
+    raw = 0.9 * overall["score"] + 0.1 * acting100 + critic["muse_bonus"]
+    raw = max(0.0, min(100.0, raw))
+    rank = next(name for floor, name in scoring.RANKS if raw >= floor)
+    critic["base_score"] = overall["score"]
+    return {**overall, "score": round(raw), "kleos": round(raw * 10), "rank": rank}
 
 
 def _char_name(scene, cid):
