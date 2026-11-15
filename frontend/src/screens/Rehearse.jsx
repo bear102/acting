@@ -34,6 +34,9 @@ export default function Rehearse({ scene, team, onGo }) {
   const clipRef = useRef(null)
   const voiceRef = useRef(null) // the ElevenLabs read-through / line clip currently playing
   const voiced = scene.voiced
+  // Scene JSON stores paths relative to the site root ("audio/scenes/x.mp3"); sfx.play() would
+  // otherwise prefix its own /audio/ and request /audio/audio/... (404, silent read-through).
+  const asset = (p) => (p.startsWith('/') ? p : `/${p}`)
   const stopVoice = () => { voiceRef.current?.pause(); voiceRef.current = null }
   const mounted = useRef(true)
   useEffect(() => () => { mounted.current = false; stopRef.current = true; window.speechSynthesis?.cancel(); stopVoice() }, [])
@@ -88,14 +91,14 @@ export default function Rehearse({ scene, team, onGo }) {
   const playLine = (i) => {
     if (!voiced?.lines?.[i]) return
     setReading(i)
-    playVoice(voiced.lines[i]).then((a) => { if (!a) setReading(-1) })
+    playVoice(asset(voiced.lines[i])).then((a) => { if (!a) setReading(-1) })
   }
 
   const readThrough = async () => {
     if (voiced?.track) {
       // the acted scene (ElevenLabs voices); highlight lines by their timings in the track
       setReading(0)
-      const a = await playVoice(voiced.track, (t) => {
+      const a = await playVoice(asset(voiced.track), (t) => {
         const i = scene.lines.findIndex((l) => t >= l.start - 0.15 && t <= l.end + 0.45)
         if (i >= 0) setReading(i)
       })
