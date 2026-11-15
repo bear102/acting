@@ -54,8 +54,10 @@ async def transcribe(audio: bytes, filename: str, keyterms: list[str] | None = N
         async with httpx.AsyncClient(timeout=60) as client:
             data = None
             for i, (mid, terms) in enumerate(attempts):
-                form = [("model_id", mid), ("language_code", "en"), ("tag_audio_events", "false")]
-                form += [("keyterms", t) for t in terms]
+                # a list value is sent as repeated multipart fields (keyterms=a, keyterms=b, ...)
+                form = {"model_id": mid, "language_code": "en", "tag_audio_events": "false"}
+                if terms:
+                    form["keyterms"] = list(terms)
                 r = await client.post(
                     f"{EL_BASE}/speech-to-text",
                     headers={"xi-api-key": key},
