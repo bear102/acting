@@ -99,7 +99,7 @@ export default function App() {
         <Rehearse scene={scene} team={team} onGo={() => setScreen('stage')} />
       )}
       {screen === 'stage' && (
-        <Suspense fallback={<div className="panel center"><p className="muted">Raising the curtainâ€¦</p></div>}>
+        <Suspense fallback={<div className="panel center"><p className="muted">Raising the curtain…</p></div>}>
           <Stage scene={scene} team={team} onCancel={() => setScreen('rehearse')} onFinish={submit} />
         </Suspense>
       )}

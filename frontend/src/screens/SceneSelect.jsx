@@ -8,6 +8,9 @@ import './setup/setup.css'
 import './setup/scene-select.css'
 import { SCENE_ART } from './setup/sceneArt.js'
 
+// Resting frame for film cards: a well-lit shot of Penelope, not the dark opening crowd shot.
+const POSTER_T = 3.1
+
 // The Cyclops's single eye, for the cave scene
 function CyclopsEye({ className = '' }) {
   return (
@@ -76,7 +79,7 @@ function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
   const leave = () => {
     onHover(null)
     const v = ref.current
-    if (v) { v.pause(); v.currentTime = 0.5 }
+    if (v) { v.pause(); v.currentTime = POSTER_T }
   }
   const players = s.characters.length === 1 ? '1' : `1–${s.characters.length}`
 
@@ -87,7 +90,7 @@ function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
       <div className="sx-art">
         {film ? (
           <>
-            <video ref={ref} src={`/${s.video}#t=0.5`} preload="metadata" muted playsInline loop />
+            <video ref={ref} src={`/${s.video}#t=${POSTER_T}`} preload="metadata" muted playsInline loop />
             <span className="sx-ribbon">From the film</span>
             <span className="sx-play" aria-hidden="true">▶</span>
           </>

@@ -69,3 +69,5 @@
   .oj-radiance, .oj-bolt, .oj-god.now .oj-disc, .oj-zeus .oj-flash, .oj-stills img { animation: none; }
   .oj-cloud { transition: none; }
 }
+/* the eyebrow sits on the brightest part of the cloud: gold with a dark halo so it stays legible */
+.oj .eyebrow { color: var(--gold-soft); text-shadow: 0 1px 6px #000, 0 0 14px rgba(0, 0, 0, .8); }
