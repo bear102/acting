@@ -2,7 +2,7 @@
 
 A party acting game for HackUTA '26. Pick a scene from the *Odyssey*, choose your crew size, and
 perform it on camera. A panel of Olympian gods scores your **words, voice, movement and facial emotion**,
-Zeus delivers the final verdict, and your crew earns *kleos* (glory) in the Hall of Heroes.
+and your crew earns *kleos* (glory) in the Hall of Heroes.
 
 ## How it works
 
@@ -39,7 +39,7 @@ The reel only reshapes what the judges measured; it never adds points. `/?previe
 this screen on a canned take.
 
 Each integration falls back if it's missing: no ElevenLabs key means local **Whisper** (faster-whisper,
-`WHISPER_MODEL`, default `base.en`) for speech-to-text, then browser speech recognition, plus browser TTS; no Gemini key means canned quips; no Mongo URI means a local JSON leaderboard.
+`WHISPER_MODEL`, default `base.en`) for speech-to-text, then browser speech recognition; no Gemini key means canned quips; no Mongo URI means a local JSON leaderboard.
 
 ## Run it
 

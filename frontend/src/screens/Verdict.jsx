@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../vision.js'
-import { Bolt, GOD_ART } from '../ui/Art.jsx'
+import { GOD_ART } from '../ui/Art.jsx'
 import Voyage from '../verdict/Voyage.jsx'
 import Reel from '../verdict/Reel.jsx'
 import '../theme/verdict.css'
@@ -86,10 +86,6 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall }
         })}
       </div>
 
-      <p className={`vd-zeus ${arrived ? 'in' : ''}`}>
-        <Bolt className="vd-zeus-bolt" />
-        <span><b>Zeus</b> {verdict.zeus}</span>
-      </p>
 
       {(reel.awards.length > 0 || reel.crew.length > 0) && <h3 className="section-title">Laurels</h3>}
       {reel.awards.length > 0 && (

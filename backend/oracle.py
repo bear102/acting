@@ -1,10 +1,9 @@
-"""External oracles: ElevenLabs (ears + voice of Zeus) and Gemini (the gods' wit).
+"""External oracles: ElevenLabs (ears) and Gemini (the gods' wit).
 
 Every call degrades gracefully - the game must still finish a round with no keys at all.
 """
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import os
@@ -74,33 +73,6 @@ async def transcribe_local(pcm) -> list[dict] | None:
         return None
 
 
-# --------------------------------------------------------------------------- ElevenLabs TTS
-
-async def speak(text: str) -> str | None:
-    """Return base64 mp3 of Zeus speaking, or None."""
-    key = _el_key()
-    if not key or not text:
-        return None
-    voice = os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(
-                f"{EL_BASE}/text-to-speech/{voice}",
-                params={"output_format": "mp3_44100_128"},
-                headers={"xi-api-key": key, "Content-Type": "application/json"},
-                json={
-                    "text": text,
-                    "model_id": os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2"),
-                    "voice_settings": {"stability": 0.35, "similarity_boost": 0.8, "style": 0.6},
-                },
-            )
-            r.raise_for_status()
-            return base64.b64encode(r.content).decode()
-    except Exception as e:  # noqa: BLE001
-        log.warning("ElevenLabs TTS failed: %s", e)
-        return None
-
-
 # --------------------------------------------------------------------------- Gemini verdict
 
 PROMPT = """You are the council of Olympian gods judging mortals who just performed a scene
@@ -139,7 +111,6 @@ Respond with JSON only:
   "apollo": "<Apollo on the voice, max 12 words>",
   "ares": "<Ares on the movement, max 12 words>",
   "aphrodite": "<Aphrodite on the emotion, max 12 words>",
-  "zeus": "<Zeus's final verdict: ONE sentence, max 24 words, about something concrete; no numeric scores>",
   "epithet": "<a Homeric epithet for the team, e.g. 'the Wine-Spilling Crew'>"{critic_schema}
 }}"""
 
@@ -154,7 +125,7 @@ CRITIC_SCHEMA = """,
   "acting": {{"<character id>": {{"score": <0-10, how closely this player's acting resembles the film actor in the paired frames>, "why": "<max 15 words>"}}}},
   "muse_bonus": <integer -5..5 for overall theatrical commitment: costume, props, energy, bravery>"""
 
-TEXT_KEYS = ("athena", "apollo", "ares", "aphrodite", "zeus")
+TEXT_KEYS = ("athena", "apollo", "ares", "aphrodite")
 
 
 async def _gemini_generate(contents: list, key: str) -> str:
@@ -276,10 +247,6 @@ def _fallback(judges: dict, overall: dict) -> dict:
         "aphrodite": pick(af, "Such passion! Even I am moved.",
                           "A flicker of feeling, like a lamp in the wind.",
                           "Your faces showed the emotion of a boiled octopus."),
-        "zeus": random.choice([
-            f"I, Zeus, cloud-gatherer, name you {overall['rank']}. Now go, before Poseidon notices you.",
-            f"Hear me, mortals: the council names you {overall['rank']}. Pour a libation and try again.",
-        ]),
         "epithet": random.choice(["the Storm-Tossed Crew", "the Much-Enduring Troupe",
                                   "the Wine-Dark Players", "the Lotus-Dazed Company"]),
         "source": "fallback",

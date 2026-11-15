@@ -103,8 +103,6 @@
 }
 .sg-emo { font-size: 1.15rem; }
 .sg-player { font-weight: 500; opacity: .85; }
-.sg-dir { font: italic 400 .95rem 'EB Garamond', serif; color: var(--muted); }
-.sg-dir::before { content: '— '; }
 .sg-words { color: rgba(244, 236, 220, .45); font-size: 1.25rem; }
 .sg-line.big .sg-words { font-size: clamp(1.25rem, 2.4vw, 2.05rem); line-height: 1.25; margin-top: 4px; }
 .sg-line.big .sg-words span { transition: color .15s, text-shadow .15s; }
@@ -215,9 +213,9 @@
 .sg-role.active { background: rgba(232, 184, 74, .1); border-color: var(--pc); }
 .sg-role-emo { font-size: 1.8rem; flex: none; }
 .sg-role-text { min-width: 0; }
-.sg-role-name { font: 700 1rem 'Cinzel', serif; color: var(--gold-soft); }
-.sg-role-name span { font-weight: 500; color: var(--pc); font-size: .85rem; }
-.sg-role-hint { font-style: italic; color: var(--muted); font-size: .9rem; line-height: 1.25; }
+.sg-role-name { font: 700 1.2rem 'Cinzel', serif; color: var(--gold-soft); }
+.sg-role-name span { font-weight: 500; color: var(--pc); font-size: 1rem; }
+.sg-role-hint { font-style: italic; color: var(--muted); font-size: 1.2rem; line-height: 1.25; }
 .sg-role.active .sg-role-hint { color: var(--marble); }
 
 @media (max-width: 640px) {
@@ -244,18 +242,20 @@
 /* subtitles band: reserved height so the layout never jumps between lines */
 .sg-band {
   flex: none; margin-top: 0; position: relative;
-  min-height: clamp(92px, 17vh, 168px);
+  min-height: clamp(116px, 21vh, 210px);
   background: linear-gradient(180deg, rgba(58, 20, 38, .6), rgba(8, 10, 22, .92));
 }
 .sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
-.sg-band .sg-upnext { position: absolute; top: 8px; left: 12px; margin: 0; font-size: clamp(.75rem, 1.7vh, .95rem); }
-.sg-band-idle { font-size: clamp(.95rem, 2.2vh, 1.2rem); }
-.sg-line .sg-speaker { font-size: clamp(.9rem, 2.3vh, 1.3rem); }
-.sg-dir { font-size: clamp(.85rem, 2vh, 1.1rem); color: #cdbfa6; }
-.sg-words { font-size: clamp(1.05rem, 2.8vh, 1.5rem); color: rgba(244, 236, 220, .62); }
-.sg-line.big .sg-words { font-size: clamp(1.5rem, 5vh, 2.9rem); line-height: 1.18; font-weight: 600; color: rgba(244, 236, 220, .5); }
+.sg-band .sg-upnext { position: absolute; top: 8px; left: 12px; margin: 0; font-size: clamp(1rem, 2.4vh, 1.35rem); }
+.sg-band-idle { font-size: clamp(1.2rem, 3vh, 1.7rem); }
+/* Read from 2-3 m back, mid-gesture: who speaks and the words, nothing else, as big as fits */
+.sg-line .sg-speaker { font-size: clamp(1.15rem, 3vh, 1.7rem); }
+.sg-emo { font-size: 1.2em; }
+.sg-words { font-size: clamp(1.35rem, 3.8vh, 2.1rem); color: rgba(244, 236, 220, .62); }
+.sg-line.big .sg-words { font-size: clamp(1.9rem, 6.4vh, 3.7rem); line-height: 1.18; font-weight: 600; color: rgba(244, 236, 220, .5); }
 .sg-line.big .sg-words .lit { color: #fff8e8; text-shadow: 0 0 14px rgba(232, 184, 74, .7), 0 2px 2px #000; }
-.sg-cue { font-size: clamp(.95rem, 2.2vh, 1.2rem); }
+.sg-cue { font-size: clamp(1.2rem, 3vh, 1.7rem); }
+.sg-cue-label { font-size: clamp(.8rem, 1.9vh, 1.05rem); }
 /* without a film the prompter overlays the camera: keep it big too */
 .sg-frame .sg-prompter { padding: clamp(10px, 2vh, 24px) clamp(14px, 2vw, 32px) clamp(10px, 1.6vh, 18px); }
 
