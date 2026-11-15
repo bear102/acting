@@ -21,6 +21,7 @@ load_dotenv(ROOT / ".env")
 import oracle  # noqa: E402
 import scoring  # noqa: E402
 import store  # noqa: E402
+import takes  # noqa: E402  (saves every take for offline re-scoring)
 from features import audio_contours, decode_audio  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
@@ -173,6 +174,12 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     except Exception as e:  # noqa: BLE001
         log.warning("Could not save run: %s", e)
     result["zeus_audio"] = zeus_audio
+    # --- save the take for calibration (tools/replay_takes.py); background thread, never fails a round
+    try:
+        import threading
+        threading.Thread(target=takes.save_take, args=(m, audio_bytes, frame_bytes, result), daemon=True).start()
+    except Exception as e:  # noqa: BLE001
+        log.warning("Could not start take save: %s", e)
     return result
 
 
