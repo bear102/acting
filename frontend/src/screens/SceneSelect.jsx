@@ -10,6 +10,8 @@ import { SCENE_ART } from './setup/sceneArt.js'
 
 // Resting frame for film cards: a well-lit shot of Penelope, not the dark opening crowd shot.
 const POSTER_T = 3.1
+// Cards per row at full size; more than this and the row scrolls sideways
+const ROW = 5
 
 // The Cyclops's single eye, for the cave scene
 function CyclopsEye({ className = '' }) {
@@ -41,13 +43,20 @@ export default function SceneSelect({ onPick, onBack }) {
   const films = scenes ? scenes.filter((s) => s.video).sort((a, b) => hard(a) - hard(b)) : []
   const scrolls = scenes ? scenes.filter((s) => !s.video) : []
   const ordered = [...films, ...scrolls]
-  const many = ordered.length > 7
+  // More trials than fit one row at full size: one sideways-scrolling row, cards keep their size
+  const many = ordered.length > ROW
   const card = (s) => {
     const i = ordered.indexOf(s)
     return (
       <SceneCard key={s.id} s={s} n={NUMERALS[i]} emblem={SCENE_EMBLEMS[s.id] || EMBLEMS[i % EMBLEMS.length]}
         on={hovered === s.id} start={i === 0 && hovered === null} onHover={setHovered} onPick={onPick} />
     )
+  }
+  const row = useRef(null)
+  // Pointing at an island brings its card into view
+  const hoverIsland = (id) => {
+    setHovered(id)
+    if (id) row.current?.querySelector(`[data-scene="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
   }
 
   return (
@@ -66,27 +75,53 @@ export default function SceneSelect({ onPick, onBack }) {
 
       {ordered.length > 0 && (
         <>
-          <VoyageMap scenes={ordered} hovered={hovered} onHover={setHovered} onPick={onPick} />
+          <VoyageMap scenes={ordered} hovered={hovered} onHover={hoverIsland} onPick={onPick} />
           {many ? (
-            <>
-              {films.length > 0 && (
-                <section className="sx-group" aria-label="From the film">
-                  <h3 className="sx-group-title">From the film <span>{films.length}</span></h3>
-                  <div className="sx-grid">{films.map(card)}</div>
-                </section>
-              )}
-              {scrolls.length > 0 && (
-                <section className="sx-group" aria-label="From the ancient scrolls">
-                  <h3 className="sx-group-title">From the ancient scrolls <span>{scrolls.length}</span></h3>
-                  <div className="sx-grid">{scrolls.map(card)}</div>
-                </section>
-              )}
-            </>
+            <CardRow innerRef={row}>{ordered.map(card)}</CardRow>
           ) : (
             <div className="sx-grid">{ordered.map(card)}</div>
           )}
         </>
       )}
+    </div>
+  )
+}
+
+// One row of full-size cards that scrolls sideways: arrows at the ends, the mouse wheel scrolls it,
+// and the edge that has more trials behind it fades out.
+function CardRow({ innerRef, children }) {
+  const [ends, setEnds] = useState({ left: false, right: true })
+  useEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    const update = () => setEnds({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+    const wheel = (e) => {
+      // A vertical wheel scrolls the row, unless it is already at that end
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      const max = el.scrollWidth - el.clientWidth
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    el.addEventListener('wheel', wheel, { passive: false })
+    window.addEventListener('resize', update)
+    return () => {
+      el.removeEventListener('scroll', update)
+      el.removeEventListener('wheel', wheel)
+      window.removeEventListener('resize', update)
+    }
+  }, [innerRef])
+  const page = (dir) => {
+    const el = innerRef.current
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
+  }
+  return (
+    <div className={`sx-rowwrap ${ends.left ? 'more-left' : ''} ${ends.right ? 'more-right' : ''}`}>
+      <div className="sx-row" ref={innerRef}>{children}</div>
+      <button className="sx-arrow left" onClick={() => page(-1)} aria-label="Earlier trials" tabIndex={-1}>‹</button>
+      <button className="sx-arrow right" onClick={() => page(1)} aria-label="More trials" tabIndex={-1}>›</button>
     </div>
   )
 }
@@ -107,7 +142,7 @@ function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
   const players = s.characters.length === 1 ? '1' : `1–${s.characters.length}`
 
   return (
-    <button className={`sx-card ${film ? 'film' : 'scroll'} ${on ? 'on' : ''} ${start ? 'start' : ''}`} onClick={() => onPick(s.id)}
+    <button data-scene={s.id} className={`sx-card ${film ? 'film' : 'scroll'} ${on ? 'on' : ''} ${start ? 'start' : ''}`} onClick={() => onPick(s.id)}
       onMouseEnter={enter} onMouseLeave={leave} onFocus={enter} onBlur={leave}
       title={s.characters.map((c) => c.name).join(' · ')}>
       <div className="sx-art">
