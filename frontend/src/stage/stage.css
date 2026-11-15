@@ -146,6 +146,8 @@
 .sg-plaque.here { opacity: 1; }
 /* pose currently matches the film actor: the plaque glows in the player's colour (no text) */
 .sg-wrap.is-live .sg-plaque.hot { box-shadow: 0 0 0 2px var(--pc), 0 0 22px var(--pc); }
+/* whose line it is: their plaque fills with their colour, matching the spotlight on the camera */
+.sg-plaque.speaking { opacity: 1; background: color-mix(in srgb, var(--pc) 32%, #0a101e); box-shadow: 0 0 0 3px var(--pc), 0 0 26px var(--pc); }
 .sg-plaque-top { display: flex; align-items: center; gap: 10px; }
 .sg-badge { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--pc); color: var(--sea-deep); font: 700 .85rem 'Cinzel', serif; }
 .sg-plaque-names { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
