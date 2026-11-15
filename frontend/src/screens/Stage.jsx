@@ -14,18 +14,39 @@ import { play, setRecording } from '../audio/sfx.js'
 import '../stage/stage.css'
 import '../stage/stage-perf.css'
 
-export default function Stage({ scene, team, onCancel, onFinish }) {
+// Restart = remount: a fresh StageInner re-initialises the camera and detector, and the discarded
+// take is never finished, so nothing is uploaded.
+export default function Stage(props) {
+  const [k, setK] = useState(0)
+  return <StageInner key={k} {...props} onRestart={() => setK((x) => x + 1)} />
+}
+
+// Raw getUserMedia / detector errors -> a short headline (the raw text goes under "Details")
+function cameraErrorTitle(e) {
+  switch (e?.name) {
+    case 'NotAllowedError': return 'Camera blocked'
+    case 'NotReadableError':
+    case 'TrackStartError': return 'Camera busy'
+    case 'NotFoundError':
+    case 'OverconstrainedError': return 'No camera found'
+    default: return 'The stage could not start'
+  }
+}
+
+function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const live = useRef({ phase: 'loading' }) // mutable per-take state read by render loops
   const [phase, setPhaseState] = useState('loading') // loading | ready | countdown | live | sending
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(null) // { title, raw }
   const [count, setCount] = useState(3)
+  const [go, setGo] = useState(false) // the brief "Action!" flash once recording has started
   const [t, setT] = useState(0)
   const [present, setPresent] = useState([])
   const [meters, setMeters] = useState([])
-  const [hold, setHold] = useState(null) // { player, character, left } while the take is held at a cut
+  const [hold, setHold] = useState(null) // { player, character, at } while the take is held at a cut
   const [pauses, setPauses] = useState(readHoldsPref) // hold at shot changes (setting, remembered)
+  live.current.pauses = pauses // read by startRecording, which may run from an older render's closure
   const canPause = shotHolds(scene.reference?.shots, team.assignments, scene.duration).length > 0
   const togglePauses = () => setPauses((on) => { writeHoldsPref(!on); return !on })
   const fullscreen = useFullscreen()
@@ -80,7 +101,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.tracker = new PlayerTracker(nPlayers)
     L.meter = Array(nPlayers).fill(null)
     L.poses = Array(nPlayers).fill(null)
-    const labels = team.players.map((pl, i) => `${pl.name} · ${charsOf(i).map(charName).join('/')}`)
+    const labels = team.players.map((pl, i) => `${i + 1} ${pl.name}`) // the role is on the plaque
     // Pause decorative page animations (frame border, embers, torches) while on stage: stage.css
     document.body.classList.add('stage-live')
 
@@ -91,7 +112,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
           video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30, max: 30 } },
           audio: { echoCancellation: true, noiseSuppression: true },
         })
-        if (cancelled) return
+        if (cancelled) { stream.getTracks().forEach((tr) => tr.stop()); return }
         L.stream = stream
         const v = videoRef.current
         v.srcObject = stream
@@ -121,13 +142,31 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         raf = requestAnimationFrame(loop)
       } catch (e) {
         console.error(e)
-        setError(e.name === 'NotAllowedError' ? 'Camera/microphone permission was denied.' : String(e))
+        if (!cancelled) setError({ title: cameraErrorTitle(e), raw: String(e) })
       }
     })()
 
-    // Debug overlay (press D): track ages, detection rates/cost, model, mode. For venue testing.
+    // Keys: Space/Enter = Action! (ready), R = restart the take (countdown/live),
+    // D = debug overlay (track ages, detection rates/cost, model, mode; for venue testing).
+    // Registered once, so it calls through refs to this render's begin/phase/onRestart.
     const onKey = (e) => {
-      if ((e.key === 'd' || e.key === 'D') && !e.target.closest?.('input, textarea')) { L.debug = !L.debug; L.dirty = true }
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
+      const tg = e.target
+      if (tg?.isContentEditable || tg?.closest?.('input, textarea, select, [contenteditable]')) return
+      const key = e.key
+      const ph = L.phase // set synchronously by setPhase, unlike React state
+      if (key === 'd' || key === 'D') {
+        L.debug = !L.debug
+        L.dirty = true
+      } else if ((key === ' ' || key === 'Enter') && ph === 'ready') {
+        // let a control reached by keyboard act natively; after a mouse click (Fullscreen, Pauses) focus
+        // lingers on it but Space should still mean Action!
+        if (tg?.closest?.('button, a, [role="button"], [role="switch"]')?.matches(':focus-visible')) return
+        e.preventDefault()
+        beginRef.current()
+      } else if ((key === 'r' || key === 'R') && (ph === 'countdown' || ph === 'live')) {
+        restartTake()
+      }
     }
     window.addEventListener('keydown', onKey)
 
@@ -227,11 +266,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       const mk = ms.join()
       if (mk !== shownMeters) { shownMeters = mk; setMeters(ms) }
       if (L.recording) setT(getTime())
-      const left = L.hold ? Math.max(1, Math.ceil((L.hold.until - performance.now()) / 1000)) : null
-      const hk = L.hold ? `${L.hold.player}:${left}` : ''
+      const hk = L.hold ? `${L.hold.player}:${L.hold.at}` : ''
       if (hk !== shownHold) {
         shownHold = hk
-        setHold(L.hold ? { player: L.hold.player, character: L.hold.character, left } : null)
+        setHold(L.hold ? { player: L.hold.player, character: L.hold.character, at: L.hold.at } : null)
       }
       if (L.debug) L.dirty = true
     }
@@ -360,6 +398,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       document.body.classList.remove('stage-live')
       L.unmounted = true
       clearInterval(L.countdownIv) // leaving during the countdown must not start a take afterwards
+      clearTimeout(L.goTimer)
+      // leaving or restarting mid-take must not leave the app's sound muted (a restart remounts
+      // straight back onto the stage, so the sfx module's own leave-the-stage reset never fires)
+      setRecording(false) // harmless when not recording; also covers a take that failed to start
       L.recording = false
       // 'paused' too: the stage can be left in the middle of a shot-change hold
       try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
@@ -386,9 +428,25 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       if (n === 0) {
         clearInterval(L.countdownIv)
         L.countdownIv = null
-        if (!L.unmounted) startRecording()
+        if (L.unmounted) return
+        startRecording() // never delayed: the "Action!" flash plays over the first moments of the take
+        setGo(true)
+        clearTimeout(L.goTimer)
+        L.goTimer = setTimeout(() => setGo(false), 700)
       }
     }, 900)
+  }
+  // The keydown listener (registered once) calls through these
+  const beginRef = useRef(begin)
+  beginRef.current = begin
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const restartRef = useRef(onRestart)
+  restartRef.current = onRestart
+  // Discard the take and start over; never once the take is being sent (that upload must finish)
+  function restartTake() {
+    if (live.current.phase === 'sending') return
+    restartRef.current?.()
   }
 
   function startRecording() {
@@ -406,7 +464,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration) : []
+    L.holds = L.pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration) : []
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -480,6 +538,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     ])
     const video = recorded && recorded.size > 1000 ? recorded : null
     setRecording(false)
+    if (L.unmounted) return // restarted or left mid-finish: discard
     play('cut', { allowOnStage: true })
     if (L.snaps.length === 0) L.snapshot(L.lastT)
     // Keep frames and their times paired even if a toBlob() failed
@@ -489,6 +548,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     blobs.forEach((b, k) => { if (b) { frames.push(b); snapshotTimes.push(L.snapTimes[k]) } })
     // Give the speech recognizer a moment to flush its last result
     await new Promise((r) => setTimeout(r, 600))
+    if (L.unmounted) return
     onFinish({
       meta: {
         scene_id: scene.id,
@@ -523,49 +583,70 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
       {phase === 'loading' && !error && <div className="sg-overlay"><div className="sg-spinner" />Summoning the all-seeing eye…</div>}
       {error && (
-        <div className="sg-overlay">
-          <p className="bad">{error}</p>
-          <button className="btn" onClick={onCancel}>Back</button>
+        <div className="sg-overlay sg-error">
+          <p className="bad sg-error-title">{error.title}</p>
+          <details className="muted small"><summary>Details</summary>{error.raw}</details>
+          <div className="row center-row">
+            <button className="btn" onClick={onRestart}>Try again</button>
+            <button className="btn ghost" onClick={onCancel}>Back</button>
+          </div>
         </div>
       )}
 
       {phase === 'ready' && (
-        <div className="sg-overlay soft">
-          <h2 className="sg-overlay-title">Take your places</h2>
-          <div className="sg-places" role="status" aria-label={`${present.filter(Boolean).length} of ${nPlayers} in frame`}>
-            {team.players.map((p, i) => (
-              <div key={i} className={`sg-place ${present[i] ? 'here' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
-                <span className="sg-place-disc">{i + 1}</span>
-                <span className="sg-place-name">{p.name}</span>
-              </div>
-            ))}
+        // Kept to a top strip and the button at the bottom: the middle is where the players stand
+        <div className="sg-overlay sg-ready">
+          <div className="sg-ready-top">
+            <h2 className="sg-overlay-title">Take your places</h2>
+            <div className="sg-places" role="status" aria-label={`${present.filter(Boolean).length} of ${nPlayers} in frame`}>
+              {team.players.map((p, i) => (
+                <div key={i} className={`sg-place ${present[i] ? 'here' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
+                  <span className="sg-place-disc">{i + 1}</span>
+                  <span className="sg-place-name">{p.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="row center-row">
-            <button className={`btn big ${team.players.every((_, i) => present[i]) ? 'sg-go' : ''}`} onClick={begin}>Action!</button>
+            <button className={`btn big ${team.players.every((_, i) => present[i]) ? 'sg-go' : ''}`} onClick={begin}
+              title="Action! (Space)">Action!</button>
           </div>
         </div>
       )}
 
-      {phase === 'countdown' && <div className="sg-overlay sg-countdown" key={count}>{count || 'Action!'}</div>}
+      {phase === 'countdown' && count > 0 && <div className="sg-overlay sg-countdown" key={count}>{count}</div>}
+      {isLive && go && <div className="sg-overlay sg-countdown sg-go-flash">Action!</div>}
       {isLive && hold && (
-        // Shot change: the player now on screen lights up, everyone else steps out
-        <div className="sg-overlay soft sg-hold">
+        // Shot change: one big disc for the player now on screen; its ring drains over the hold
+        <div className="sg-overlay soft sg-hold" style={{ '--pc': PLAYER_COLORS[hold.player], '--hold-ms': `${HOLD_MS}ms` }}>
           <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}.${nPlayers > 1 ? ' Everyone else, step out of frame.' : ' Get ready.'}`}</p>
-          <div className="sg-hold-count" key={hold.left} aria-hidden="true">{hold.left}</div>
-          <div className="sg-places" aria-hidden="true">
-            {team.players.map((p, i) => (
-              <div key={i} className={`sg-place ${i === hold.player ? 'here' : 'away'}`} style={{ '--pc': PLAYER_COLORS[i] }}>
-                <span className="sg-place-disc">{i + 1}</span>
-                <span className="sg-place-name">{i === hold.player ? charName(hold.character) : p.name}</span>
-              </div>
-            ))}
+          <div className="sg-hold-disc" aria-hidden="true">
+            <svg className="sg-hold-ring" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="47" className="sg-hold-ring-bg" />
+              <circle key={`${hold.player}:${hold.at}`} cx="50" cy="50" r="47" pathLength="100" className="sg-hold-ring-fg" />
+            </svg>
+            <span>{hold.player + 1}</span>
           </div>
+          <div className="sg-hold-who" aria-hidden="true">
+            <strong>{team.players[hold.player].name}</strong>
+            <span>as {charName(hold.character)}</span>
+          </div>
+          {nPlayers > 1 && <div className="sg-hold-out" aria-hidden="true">Others, step out</div>}
         </div>
       )}
       {phase === 'sending' && <div className="sg-overlay"><div className="sg-spinner" />Cut! Sending your performance to Olympus…</div>}
 
-      {isLive && !hasFilm && <Prompter scene={scene} team={team} t={t} />}
       {isLive && <div className="sg-progress"><div style={{ width: `${progress * 100}%` }} /></div>}
+    </div>
+  )
+
+  // Subtitle band (same under the film pair and under a camera on its own): live words, or before
+  // the take the opening line, dimmed, instead of describing itself
+  const band = (
+    <div className="sg-band">
+      {isLive ? <Prompter scene={scene} team={team} t={t} /> : (
+        <div className="sg-band-idle"><Prompter scene={scene} team={team} t={-5} /></div>
+      )}
     </div>
   )
 
@@ -592,7 +673,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
             <button type="button" className={`btn ghost sg-small-btn sg-pause-btn ${pauses ? 'on' : ''}`} role="switch"
               aria-checked={pauses} onClick={togglePauses}
               title={pauses ? 'The scene pauses at each shot change so you can get ready. Click to turn off.' : 'Turn on pauses at each shot change'}>
-              {pauses ? '⏸ Pauses on' : '▶ No pauses'}
+              <span className="sg-switch" aria-hidden="true"><i /></span> Pauses
             </button>
           )}
           {fullscreen.supported && (
@@ -600,6 +681,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
               title={fullscreen.on ? 'Exit fullscreen (Esc)' : 'Fill the screen: best for laptops'}>
               {fullscreen.on ? '⤡ Exit fullscreen' : '⛶ Fullscreen'}
             </button>
+          )}
+          {(phase === 'countdown' || isLive) && (
+            <button type="button" className="btn ghost sg-small-btn" onClick={restartTake}
+              title="Discard this take and start over (R)">Restart</button>
           )}
           {isLive ? (
             <button className="btn ghost sg-small-btn" onClick={finish}>End scene</button>
@@ -617,12 +702,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
             </div>
             <div className="sg-cell sg-cell-cam">{camera}</div>
           </div>
-          <div className="sg-band">
-            {isLive ? <Prompter scene={scene} team={team} t={t} /> : (
-              // before the take, the band previews the opening line (dimmed) instead of describing itself
-              <div className="sg-band-idle"><Prompter scene={scene} team={team} t={-5} /></div>
-            )}
-          </div>
+          {band}
           {plaques}
         </>
       ) : (
@@ -631,6 +711,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
             <div className="sg-cell sg-cell-solo">{camera}</div>
             <Roster scene={scene} team={team} t={isLive ? t : null} />
           </div>
+          {band}
           {plaques}
         </>
       )}

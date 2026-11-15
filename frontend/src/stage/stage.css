@@ -48,8 +48,8 @@
 /* 16:9 box limited by both its width share and the row height (minus the frame rings) */
 .sg-cell-film { width: min(calc((100cqw - var(--gap)) * .54 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
 .sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .46 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
-.sg-cell-solo { width: min(calc(100cqw - var(--gap) - clamp(240px, 24cqw, 340px) - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
-.sg-solo .sg-roster { flex: none; width: clamp(240px, 24cqw, 340px); max-height: 100cqh; overflow-y: auto; margin: 0; }
+.sg-cell-solo { width: min(calc(100cqw - var(--gap) - clamp(200px, 20cqw, 300px) - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-solo .sg-roster { flex: none; width: clamp(200px, 20cqw, 300px); max-height: 100cqh; overflow-y: auto; margin: 0; }
 .sg-solo .sg-roster-list { grid-template-columns: 1fr; }
 
 /* ---------- camera frame */
@@ -85,6 +85,9 @@
   animation: sg-count .9s ease-out both;
 }
 @keyframes sg-count { from { transform: scale(1.6); opacity: 0; } 40% { opacity: 1; } to { transform: scale(1); } }
+@keyframes sg-count-fade { from { opacity: 0; } }
+/* "Action!" flashes over the first moments of the take (recording has already started) */
+.sg-go-flash { pointer-events: none; background: radial-gradient(circle, rgba(10, 16, 32, .15), rgba(10, 16, 32, .5)); }
 .sg-spinner {
   width: 46px; height: 46px; border-radius: 50%;
   border: 3px solid rgba(232, 184, 74, .2); border-top-color: var(--gold);
@@ -105,6 +108,21 @@
 .sg-go { animation: sg-go 1.1s ease-in-out infinite; }
 @keyframes sg-go { 50% { transform: scale(1.06); box-shadow: 0 0 30px var(--gold); } }
 
+/* "take your places": a top strip (title + discs) and the button at the bottom, nothing over the
+   middle of the picture where the players stand */
+.sg-ready {
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(10, 16, 32, .88), rgba(10, 16, 32, 0) 30%, rgba(10, 16, 32, 0) 78%, rgba(10, 16, 32, .5));
+}
+.sg-ready-top { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, .8vh, 8px); }
+.sg-ready .sg-overlay-title { font-size: clamp(.9rem, 2.4vh, 1.2rem); letter-spacing: .12em; text-transform: uppercase; }
+.sg-ready .sg-places { gap: clamp(8px, 1.6vw, 22px); }
+.sg-ready .sg-place-disc { width: clamp(36px, 7vh, 60px); border-width: 2px; font-size: clamp(1rem, 3.6vh, 1.8rem); }
+.sg-ready .sg-place-name { font-size: clamp(.72rem, 1.8vh, .95rem); text-shadow: 0 1px 4px #000; }
+.sg-ready .sg-place.here .sg-place-disc { animation: sg-place-pop .3s ease-out; }
+.sg-ready .row { margin-top: 0; }
+@keyframes sg-place-pop { from { transform: scale(.8); } 60% { transform: scale(1.1); } to { transform: scale(1); } }
+
 /* ---------- teleprompter */
 .sg-prompter {
   position: absolute; left: 0; right: 0; bottom: 6px; padding: 28px 36px 18px; text-align: center;
@@ -118,14 +136,12 @@
 /* the upcoming line: whole, in its speaker's colour, a touch dimmer than a live one */
 .sg-prompter.soon .sg-words { color: color-mix(in srgb, var(--pc) 70%, #f4ecdc); opacity: .8; }
 .sg-cue { color: var(--muted); }
-.sg-upnext {
-  display: inline-flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 2px 14px 2px 4px;
-  border-radius: 999px; background: rgba(10, 16, 32, .75); font: 600 .9rem 'Cinzel', serif;
-  animation: sg-pop .3s ease both;
-}
-.sg-ring-bg { fill: none; stroke: rgba(255, 255, 255, .15); stroke-width: 3; }
-.sg-ring { fill: none; stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset .1s linear; }
-.sg-upnext text { fill: currentColor; font: 700 14px 'Cinzel', serif; }
+.sg-upnext { display: block; animation: sg-pop .3s ease both; }
+.sg-upnext svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.sg-upnext-disc { filter: drop-shadow(0 0 6px rgba(0, 0, 0, .5)); }
+.sg-ring-bg { fill: none; stroke: rgba(255, 255, 255, .18); stroke-width: 6; }
+.sg-ring { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .1s linear; }
+.sg-upnext text { fill: var(--sea-deep); font: 900 46px 'Cinzel', serif; }
 @keyframes sg-pop { from { transform: translateY(6px) scale(.95); opacity: 0; } }
 
 .sg-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: rgba(255, 255, 255, .08); }
@@ -144,6 +160,8 @@
 .sg-wrap.is-live .sg-plaque.hot { box-shadow: 0 0 0 2px var(--pc), 0 0 22px var(--pc); }
 /* whose line it is: their plaque fills with their colour, matching the spotlight on the camera */
 .sg-plaque.speaking { opacity: 1; background: color-mix(in srgb, var(--pc) 32%, #0a101e); box-shadow: 0 0 0 3px var(--pc), 0 0 26px var(--pc); }
+.sg-plaque.speaking { animation: sg-speak-in .35s ease-out; }
+@keyframes sg-speak-in { from { transform: scale(1.04); box-shadow: 0 0 0 3px var(--pc), 0 0 48px var(--pc); } }
 .sg-plaque-top { display: flex; align-items: center; gap: 10px; }
 .sg-badge { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--pc); color: var(--sea-deep); font: 700 .85rem 'Cinzel', serif; }
 .sg-plaque-names { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
@@ -213,9 +231,7 @@
 .sg-role-emo { font-size: 1.8rem; flex: none; }
 .sg-role-text { min-width: 0; }
 .sg-role-name { font: 700 1.2rem 'Cinzel', serif; color: var(--gold-soft); }
-.sg-role-name span { font-weight: 500; color: var(--pc); font-size: 1rem; }
-.sg-role-hint { font-style: italic; color: var(--muted); font-size: 1.2rem; line-height: 1.25; }
-.sg-role.active .sg-role-hint { color: var(--marble); }
+.sg-role-player { font: 600 1rem 'Cinzel', serif; color: var(--pc); }
 
 @media (max-width: 640px) {
   .sg-prompter { padding: 16px 12px 12px; }
@@ -245,12 +261,13 @@
   background: linear-gradient(180deg, rgba(58, 20, 38, .6), rgba(8, 10, 22, .92));
 }
 .sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
-.sg-band .sg-upnext { position: absolute; top: 8px; left: 12px; margin: 0; font-size: clamp(1rem, 2.4vh, 1.35rem); }
+/* upcoming-line cue: a disc at the band's left, vertically centred; the words keep clear of it */
+.sg-band { --cue: clamp(48px, 9vh, 84px); }
+.sg-band .sg-upnext { position: absolute; left: 12px; top: 0; bottom: 0; margin: auto 0; width: var(--cue); height: var(--cue); z-index: 1; }
+.sg-band .sg-prompter { padding-left: calc(var(--cue) + 20px); }
 /* Read from 2-3 m back: the words fill the band */
 .sg-words { font-size: clamp(2.3rem, 8.4vh, 5rem); }
 .sg-cue { font-size: clamp(1.2rem, 3vh, 1.7rem); }
-/* without a film the prompter overlays the camera: keep it big too */
-.sg-frame .sg-prompter { padding: clamp(10px, 2vh, 24px) clamp(14px, 2vw, 32px) clamp(10px, 1.6vh, 18px); }
 
 /* player plaques: one compact row */
 .sg-plaques { flex: none; margin-top: 0; gap: clamp(6px, 1vw, 12px); flex-wrap: nowrap; }
@@ -329,16 +346,44 @@ body.stage-live .bd-torch { display: none; }
   .sg-cell-film { width: 100%; }
 }
 
-/* Shot-change hold: a big countdown over the camera; the on-screen player's disc is lit, the rest
-   fade out (they step out of frame). */
-.sg-hold { gap: clamp(8px, 2vh, 18px); }
-.sg-hold-count {
-  font: 900 clamp(2.6rem, 10vh, 5rem) 'Cinzel', serif; line-height: 1; color: var(--gold-soft);
-  text-shadow: 0 0 24px rgba(232, 184, 74, .6); animation: sg-hold-tick 1s ease-out both;
+/* Shot-change hold: one big disc for the player now on screen (their colour and number), a ring
+   around it draining over the hold, their name and role beneath. */
+.sg-hold { gap: clamp(4px, 1vh, 10px); }
+.sg-hold-disc {
+  --d: clamp(90px, 22vh, 180px);
+  position: relative; flex: none; width: var(--d); height: var(--d); border-radius: 50%;
+  display: grid; place-items: center; background: var(--pc); color: var(--sea-deep);
+  font: 900 clamp(2.8rem, 12vh, 6rem) 'Cinzel', serif; line-height: 1;
+  box-shadow: 0 0 34px var(--pc); margin: calc(var(--d) * .1) 0 calc(var(--d) * .1 - 4px);
 }
-@keyframes sg-hold-tick { from { transform: scale(1.35); opacity: .4; } }
-.sg-place.away { opacity: .3; filter: grayscale(.6); transform: scale(.85); transition: opacity .25s, transform .25s; }
-@media (prefers-reduced-motion: reduce) { .sg-hold-count { animation: none; } }
+.sg-hold-ring { position: absolute; inset: -9%; width: 118%; height: 118%; transform: rotate(-90deg); overflow: visible; }
+.sg-hold-ring circle { fill: none; stroke-width: 4; }
+.sg-hold-ring-bg { stroke: rgba(255, 255, 255, .16); }
+.sg-hold-ring-fg { stroke: var(--gold-soft); stroke-linecap: round; stroke-dasharray: 100; animation: sg-hold-drain var(--hold-ms, 3000ms) linear both; }
+@keyframes sg-hold-drain { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 100; } }
+.sg-hold-who { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.sg-hold-who strong { font: 700 clamp(1.4rem, 5vh, 2.6rem) 'Cinzel', serif; color: var(--pc); text-shadow: 0 2px 6px #000; }
+.sg-hold-who span { font-style: italic; color: var(--marble); font-size: clamp(.9rem, 2.2vh, 1.15rem); }
+.sg-hold-out { font: 600 clamp(.8rem, 2vh, 1rem) 'Cinzel', serif; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-soft); }
 .sg-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.sg-pause-btn { opacity: .75; }
+.sg-pause-btn { opacity: .75; display: inline-flex; align-items: center; gap: 8px; }
 .sg-pause-btn.on { opacity: 1; border-color: var(--gold); color: var(--gold-soft); }
+/* on/off switch: gold track, knob right = on; grey track, knob left = off */
+.sg-switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 999px; background: rgba(255, 255, 255, .25); transition: background .2s; }
+.sg-switch i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #e8e2d4; transition: transform .2s; }
+.sg-pause-btn.on .sg-switch { background: var(--gold); }
+.sg-pause-btn.on .sg-switch i { transform: translateX(12px); background: #fff; }
+
+/* during a take the 10 Hz numbers and words go; the favor bar and glow stay */
+.sg-wrap.is-live .sg-plaque-num, .sg-wrap.is-live .sg-plaque-label { display: none; }
+
+/* camera / detector failure */
+.sg-error-title { font: 700 clamp(1.2rem, 3.6vh, 2rem) 'Cinzel', serif; }
+.sg-error details { max-width: 90%; overflow-wrap: anywhere; }
+.sg-error summary { cursor: pointer; }
+.sg-error .row { margin-top: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-countdown { animation-name: sg-count-fade; }
+  .sg-ready .sg-place.here .sg-place-disc, .sg-plaque.speaking { animation: none; } /* the hold ring keeps draining: it is the countdown */
+}
