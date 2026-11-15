@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { Laurel } from '../ui/Art.jsx'
 import { Pediment } from '../theme/Temple.jsx'
 import '../theme/hall.css'
 
-export default function Leaderboard({ onBack, highlight }) {
+export default function Leaderboard({ onBack, highlight, onRetry }) {
   const [rows, setRows] = useState(null)
   const [scenes, setScenes] = useState([])
-  const [sceneId, setSceneId] = useState('')
+  const [sceneId, setSceneId] = useState(highlight?.scene_id || '')
+  const meRef = useRef(null)
 
   useEffect(() => { api.scenes().then(setScenes).catch(() => {}) }, [])
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function Leaderboard({ onBack, highlight }) {
     api.leaderboard(sceneId).then((r) => live && setRows(r)).catch(() => live && setRows([]))
     return () => { live = false }
   }, [sceneId])
+  useEffect(() => { meRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }) }, [rows])
 
   const choose = (id) => {
     if (id === sceneId) return
@@ -24,10 +26,17 @@ export default function Leaderboard({ onBack, highlight }) {
   const tabs = [{ id: '', title: 'All trials' }, ...scenes.map((s) => ({ id: s.id, title: s.title }))]
   const isMine = (r) => highlight && r.team_name === highlight.team_name && r.kleos === highlight.kleos
     && r.scene_id === highlight.scene_id
+  const mine = rows ? rows.findIndex(isMine) : -1
+  // Outside the top 20 the API returns: pin your own row under the table. The place is per trial, so never on "All trials".
+  const pinned = !!(rows && highlight?.hall && sceneId === highlight.scene_id && mine < 0)
+  const next = highlight?.reel?.voyage?.next
 
   return (
     <div className="panel ol">
-      <button className="link" onClick={onBack}>← Back</button>
+      <div className="ol-bar">
+        <button className="link" onClick={onBack}>{highlight ? '← Back to your verdict' : '← Back'}</button>
+        {onRetry && <button className="btn" onClick={onRetry}>↻ {next ? `Chase ${next.name}` : 'Sail it again'}</button>}
+      </div>
       <div className="ol-stele">
         <Pediment className="ol-pediment" />
         <div className="ol-slab">
@@ -48,13 +57,13 @@ export default function Leaderboard({ onBack, highlight }) {
           </div>
 
           {!rows && <p className="ol-empty">Reading the stone tablets…</p>}
-          {rows?.length === 0 && <p className="ol-empty">No heroes carved here yet. Be the first.</p>}
-          {rows?.length > 0 && (
+          {rows?.length === 0 && !pinned && <p className="ol-empty">No heroes carved here yet. Be the first.</p>}
+          {(rows?.length > 0 || pinned) && (
             <table className="hall ol-table">
               <thead><tr><th>#</th><th>Crew</th><th>Trial</th><th>Rank</th><th className="num">Kleos</th></tr></thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i} className={`${isMine(r) ? 'me' : ''} ${i < 3 ? `ol-top ol-top-${i + 1}` : ''}`}>
+                  <tr key={i} ref={i === mine ? meRef : null} className={`${i === mine ? 'me' : ''} ${i < 3 ? `ol-top ol-top-${i + 1}` : ''}`}>
                     <td>
                       <span className="ol-place">
                         {i < 3 && <Laurel className="ol-place-laurel" />}
@@ -67,6 +76,18 @@ export default function Leaderboard({ onBack, highlight }) {
                     <td className="num kleos">{r.kleos}</td>
                   </tr>
                 ))}
+                {pinned && (
+                  <tr ref={meRef} className="me ol-pinned">
+                    <td><span className="ol-place"><span className="place">{highlight.hall.place}</span></span></td>
+                    <td>
+                      <strong className="ol-crew">{highlight.team_name}</strong>
+                      {highlight.verdict?.epithet && <div className="ol-epithet">{highlight.verdict.epithet}</div>}
+                    </td>
+                    <td>{highlight.scene_title}<div className="ol-sub">{highlight.team_size} player{highlight.team_size > 1 ? 's' : ''}</div></td>
+                    <td className="ol-rank">{highlight.rank}</td>
+                    <td className="num kleos">{highlight.kleos}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
