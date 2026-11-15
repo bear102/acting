@@ -395,7 +395,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration, nPlayers, scene.lines)
+    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration)
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -537,7 +537,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       {isLive && hold && (
         // Shot change: the player now on screen lights up, everyone else steps out
         <div className="sg-overlay soft sg-hold">
-          <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}. Everyone else, step out of frame.`}</p>
+          <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}.${nPlayers > 1 ? ' Everyone else, step out of frame.' : ' Get ready.'}`}</p>
           <div className="sg-hold-count" key={hold.left} aria-hidden="true">{hold.left}</div>
           <div className="sg-places" aria-hidden="true">
             {team.players.map((p, i) => (
