@@ -53,6 +53,9 @@ def replay(client, folder: Path) -> dict:
     audio = folder / "audio.webm"
     if audio.exists():
         files.append(("audio", ("take.webm", audio.read_bytes(), "audio/webm")))
+    video = folder / "video.webm"
+    if video.exists():
+        files.append(("video", ("take-video.webm", video.read_bytes(), "video/webm")))
     for f in sorted(folder.glob("frame_*.jpg"), key=lambda p: int(p.stem.split("_")[1])):
         files.append(("frames", (f.name, f.read_bytes(), "image/jpeg")))
     r = client.post("/api/perform", data={"meta": json.dumps(meta)}, files=files or None)
