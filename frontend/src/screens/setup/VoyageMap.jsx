@@ -79,7 +79,7 @@ export default function VoyageMap({ scenes, hovered, onHover, onPick }) {
           const [x, y] = pts[i]
           const on = hovered === s.id
           return (
-            <g key={s.id} className={`sx-wp ${on ? 'on' : ''} ${s.video ? 'film' : ''}`}
+            <g key={s.id} className={`sx-wp ${on ? 'on' : ''} ${s.video ? 'film' : ''} ${i === 0 && hovered === null ? 'start' : ''}`}
               transform={`translate(${x} ${y})`} role="button" tabIndex={0}
               aria-label={`Trial ${NUMERALS[i]}: ${s.title}`}
               onClick={() => onPick(s.id)}

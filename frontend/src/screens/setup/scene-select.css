@@ -158,3 +158,10 @@
 @media (prefers-reduced-motion: reduce) {
   .sx, .sx *, .sx *::before, .sx *::after { animation: none !important; transition: none !important; }
 }
+
+/* First visit: the first trial and its island breathe gently until the pointer picks something,
+   so a newcomer's eye lands on a good place to start without being told. */
+.sx-card.start { animation: sx-start 2.6s ease-in-out infinite; }
+@keyframes sx-start { 50% { box-shadow: 0 0 0 3px rgba(232, 184, 74, .6), 0 0 36px rgba(232, 184, 74, .35); } }
+.sx-wp.start .sx-wp-ring { animation: sx-start-ring 2.6s ease-in-out infinite; }
+@keyframes sx-start-ring { 50% { stroke: var(--gold-soft); stroke-width: 5.5; } }

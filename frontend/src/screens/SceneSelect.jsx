@@ -54,7 +54,7 @@ export default function SceneSelect({ onPick, onBack }) {
           <div className="sx-grid">
             {ordered.map((s, i) => (
               <SceneCard key={s.id} s={s} n={NUMERALS[i]} emblem={SCENE_EMBLEMS[s.id] || EMBLEMS[i % EMBLEMS.length]}
-                on={hovered === s.id} onHover={setHovered} onPick={onPick} />
+                on={hovered === s.id} start={i === 0 && hovered === null} onHover={setHovered} onPick={onPick} />
             ))}
           </div>
         </>
@@ -63,7 +63,7 @@ export default function SceneSelect({ onPick, onBack }) {
   )
 }
 
-function SceneCard({ s, n, emblem: Emblem, on, onHover, onPick }) {
+function SceneCard({ s, n, emblem: Emblem, on, start, onHover, onPick }) {
   const ref = useRef(null)
   const film = Boolean(s.video)
   const enter = () => {
@@ -79,7 +79,7 @@ function SceneCard({ s, n, emblem: Emblem, on, onHover, onPick }) {
   const players = s.characters.length === 1 ? '1' : `1–${s.characters.length}`
 
   return (
-    <button className={`sx-card ${film ? 'film' : 'scroll'} ${on ? 'on' : ''}`} onClick={() => onPick(s.id)}
+    <button className={`sx-card ${film ? 'film' : 'scroll'} ${on ? 'on' : ''} ${start ? 'start' : ''}`} onClick={() => onPick(s.id)}
       onMouseEnter={enter} onMouseLeave={leave} onFocus={enter} onBlur={leave}
       title={s.characters.map((c) => c.name).join(' · ')}>
       <div className="sx-art">
