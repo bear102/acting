@@ -4,7 +4,8 @@
 //
 // Films often cut late: the new character starts talking a moment BEFORE the camera reaches them.
 // So when the incoming character has a line that starts just before (or right after) the cut, the
-// hold moves to just before that line; it never falls inside a line spoken by the incoming character.
+// hold moves to just before that line (unless that line started well before the cut, or the hold
+// would land in the first second).
 // During a hold the film panel parks on the first frame of the new shot (`park`), even when the hold
 // comes slightly before the cut, so the player sees exactly what to match.
 //

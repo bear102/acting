@@ -57,9 +57,8 @@ export default memo(function FilmPanel({ src, getTime, getPhase, getPark }) {
       // seek for big jumps (start, preview loop wrap, long stalls) and at most once a second;
       // absorb small drift by nudging the playback rate instead.
       if (heldBefore && phase !== 'hold') {
-        // Hold over: the parked frame can be ahead of the take; jump straight back in sync
-        v.currentTime = target
-        lastSeek.current = now
+        // Hold over: if the parked frame was ahead of the take, jump straight back in sync
+        if (Math.abs(drift) > 0.03) { v.currentTime = target; lastSeek.current = now }
         v.playbackRate = 1
       } else if (phase === 'hold') {
         // Parked at a shot change: show exactly the frame the players should match. The target
