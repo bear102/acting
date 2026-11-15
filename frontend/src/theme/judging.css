@@ -43,12 +43,16 @@
 .oj-god.done .oj-art { color: var(--ink); }
 @keyframes oj-pulse { 50% { transform: scale(1.07); } }
 .oj-name { font: 700 .9rem 'Cinzel', serif; color: var(--gold-soft); margin-top: 6px; }
-.oj-state { font-size: .78rem; color: var(--muted); font-style: italic; }
-.oj-god.done .oj-state { color: var(--good); }
+
+/* the group's own snapshots from the take, each spotlit in turn */
+.oj-stills { display: flex; justify-content: center; gap: 8px; margin: 0 auto 14px; }
+.oj-stills img { height: clamp(54px, 11vh, 96px); aspect-ratio: 16 / 9; min-width: 0; object-fit: cover; border-radius: 6px;
+  border: 2px solid var(--sea-light); opacity: .55; animation: oj-still calc(var(--n) * .9s) calc(var(--k) * .9s) infinite; }
+@keyframes oj-still { 0%, 20% { opacity: 1; border-color: var(--gold); transform: scale(1.06); } 30%, 100% { opacity: .55; transform: none; } }
 
 .oj-msg { color: var(--muted); font-size: 1.1rem; font-style: italic; min-height: 1.6em; animation: rise .5s ease both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .oj-radiance, .oj-bolt, .oj-god.now .oj-disc, .oj-zeus .oj-flash { animation: none; }
+  .oj-radiance, .oj-bolt, .oj-god.now .oj-disc, .oj-zeus .oj-flash, .oj-stills img { animation: none; }
   .oj-cloud { transition: none; }
 }

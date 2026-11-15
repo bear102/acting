@@ -122,6 +122,20 @@ def test_hall_place_and_rival():
     assert reel.hall_place(rows, 900)["rival"] is None and reel.hall_place([], 10)["place"] == 1
 
 
+def test_hall_rival_is_never_your_own_take():
+    rows = [{"team_name": "A", "kleos": 900}, {"team_name": "Me", "kleos": 700},
+            {"team_name": " me ", "kleos": 650}, {"team_name": "Me", "kleos": 600}]
+    h = reel.hall_place(rows, 600, "Me")
+    assert h["place"] == 4 and h["of"] == 4, h
+    assert h["rival"] == {"team_name": "A", "kleos": 900, "gap": 300}, h  # skips both of my earlier takes
+    # only my own takes are ahead: the chip chases my own best, flagged as such
+    mine = [{"team_name": "Me", "kleos": 700}, {"team_name": "Me", "kleos": 600}]
+    assert reel.hall_place(mine, 600, "Me")["rival"] == {"own": True, "team_name": "Me", "kleos": 700, "gap": 100}
+    # no team name given: today's behaviour, the nearest row ahead whoever it is
+    assert reel.hall_place(rows, 600) == {"place": 4, "of": 4, "rival": {"team_name": " me ", "kleos": 650, "gap": 50}}
+    assert reel.hall_place(mine, 600)["rival"] == {"team_name": "Me", "kleos": 700, "gap": 100}
+
+
 if __name__ == "__main__":  # the venv has no pytest: run as a plain script like the other harnesses
     failed = 0
     for name, fn in list(globals().items()):
