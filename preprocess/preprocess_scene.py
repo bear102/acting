@@ -155,6 +155,7 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
     (largest pose only when no face is found); others None."""
     import cv2
     import mediapipe as mp
+    import numpy as np
     from mediapipe.tasks.python import BaseOptions, vision
 
     pose = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
@@ -166,6 +167,23 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
         # film faces are often small and dark (over-the-shoulder shots); the 0.5 defaults miss them
         min_face_detection_confidence=0.3, min_face_presence_confidence=0.3, min_tracking_confidence=0.3))
 
+    # Second-chance face check on an enlarged head crop (IMAGE mode), used when the full frame shows
+    # no face: a foreground actor's back of the head never yields one, the on-screen actor usually does.
+    face_crop = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=str(MODELS / "face_landmarker.task")), num_faces=1,
+        min_face_detection_confidence=0.3, min_face_presence_confidence=0.3))
+
+    def head_has_face(rgb, lm):
+        h, w = rgb.shape[:2]
+        sw = max(abs(lm[11].x - lm[12].x) * w, 40)
+        cx, cy = lm[0].x * w, lm[0].y * h
+        x0, x1 = int(max(0, cx - 1.2 * sw)), int(min(w, cx + 1.2 * sw))
+        y0, y1 = int(max(0, cy - 1.3 * sw)), int(min(h, cy + 1.1 * sw))
+        if x1 - x0 < 16 or y1 - y0 < 16:
+            return False
+        crop = cv2.resize(np.ascontiguousarray(rgb[y0:y1, x0:x1]), (384, max(16, int(384 * (y1 - y0) / (x1 - x0)))))
+        return bool(face_crop.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=crop)).face_landmarks)
+
     cap = cv2.VideoCapture(str(path))
     fps = cap.get(cv2.CAP_PROP_FPS) or 24
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -176,6 +194,7 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
 
     # Read sequentially (seeking is slow and imprecise) and process the frame nearest each 0.1 s tick.
     k, frame_idx = 0, 0
+    last_nose = {}  # char -> (shot start, nose x, nose y) of the last confident (face-anchored) pick
     while k < n:
         ok, frame = cap.read()
         if not ok:
@@ -188,7 +207,8 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
         shot = shot_at(shots, t)
         char = shot["character"] if shot else None
         if char:
-            img = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
             ts = int(t * 1000)
             pr = pose.detect_for_video(img, ts)
             fr = face.detect_for_video(img, ts)
@@ -210,13 +230,32 @@ def track_by_shot(path: Path, shots: list[dict], char_ids: list[str]) -> tuple[d
                     cand = min(pr.pose_landmarks, key=d)
                     if d(cand) <= max(0.12, 1.5 * fw):   # nose must sit on that face
                         p = cand
+                        last_nose[char] = (shot["start"], p[0].x, p[0].y)
                 if p is None and fc is None:
                     # No face: prefer bodies whose shoulders are fully in frame. A foreground actor's
                     # back in an over-the-shoulder shot is the biggest body but runs off the frame edge.
-                    inside = [lm for lm in pr.pose_landmarks
-                              if all(0.03 < lm[i].x < 0.97 and 0.0 < lm[i].y < 1.0 for i in (11, 12))]
-                    p = max(inside or pr.pose_landmarks,
-                            key=lambda lm: abs(lm[11].x - lm[12].x) + abs(lm[11].y - lm[12].y))
+                    big = lambda lm: abs(lm[11].x - lm[12].x) + abs(lm[11].y - lm[12].y)
+                    cands = pr.pose_landmarks
+                    prev = last_nose.get(char)
+                    if len(cands) > 1 and prev and prev[0] == shot["start"]:
+                        # same shot as a confident pick: the character hasn't teleported (cup over the face)
+                        near = min(cands, key=lambda lm: (lm[0].x - prev[1]) ** 2 + (lm[0].y - prev[2]) ** 2)
+                        if ((near[0].x - prev[1]) ** 2 + (near[0].y - prev[2]) ** 2) ** 0.5 < 0.15:
+                            cands = [near]
+                    if len(cands) > 1:
+                        faced = [lm for lm in cands if head_has_face(rgb, lm)]
+                        if faced:
+                            last_nose[char] = (shot["start"], faced[0][0].x, faced[0][0].y) if len(faced) == 1 else last_nose.get(char)
+                        if faced:
+                            cands = faced
+                        else:
+                            cands = [lm for lm in cands
+                                     if all(0.03 < lm[i].x < 0.97 and 0.0 < lm[i].y < 1.0 for i in (11, 12))] or cands
+                    p = max(cands, key=big)
+                    # Far from where this character was earlier in the same shot (e.g. only the
+                    # foreground actor's back was detected): record nothing rather than the wrong body.
+                    if prev and prev[0] == shot["start"] and ((p[0].x - prev[1]) ** 2 + (p[0].y - prev[2]) ** 2) ** 0.5 > 0.2:
+                        p = None
                 if p is not None:
                     poses[char][k] = [round(v, 3) if j < 2 else round(v, 2)
                                       for i in POSE_INDICES
