@@ -117,23 +117,23 @@ export function drawSkeleton(ctx, lm, color, label, w, h) {
   if (!lm) return
   const P = (i) => [mirrorX(lm[i].x) * w, lm[i].y * h]
   ctx.save()
+  // Faint on purpose: it only tells players they're tracked; the film is what they copy.
+  ctx.globalAlpha = 0.35
   ctx.strokeStyle = color
-  ctx.lineWidth = 6
+  ctx.lineWidth = 3
   ctx.lineCap = 'round'
-  ctx.shadowColor = color
-  ctx.shadowBlur = 12
   for (const [a, b] of BONES) {
     if ((lm[a].visibility ?? 1) < 0.4 || (lm[b].visibility ?? 1) < 0.4) continue
     ctx.beginPath(); ctx.moveTo(...P(a)); ctx.lineTo(...P(b)); ctx.stroke()
   }
   ctx.fillStyle = color
-  for (const i of [0, 15, 16]) {
+  for (const i of [15, 16]) {
     if ((lm[i].visibility ?? 1) < 0.4) continue
-    ctx.beginPath(); ctx.arc(...P(i), 8, 0, Math.PI * 2); ctx.fill()
+    ctx.beginPath(); ctx.arc(...P(i), 5, 0, Math.PI * 2); ctx.fill()
   }
+  ctx.globalAlpha = 1
   if (label) {
     const [x, y] = P(0)
-    ctx.shadowBlur = 0
     ctx.font = '700 22px Cinzel, serif'
     ctx.textAlign = 'center'
     const tw = ctx.measureText(label).width

@@ -1,8 +1,5 @@
 import { PLAYER_COLORS } from '../vision.js'
-
-export const EMOTION_ICONS = {
-  rage: '😠', fear: '😨', joy: '😄', sorrow: '😢', cunning: '😏', awe: '😲', resolve: '😤', longing: '🥺',
-}
+import { EMOTION_ICONS } from './emotions.js'
 
 // Karaoke teleprompter + "you're up" countdown ring for the next line.
 export default function Prompter({ scene, team, t }) {

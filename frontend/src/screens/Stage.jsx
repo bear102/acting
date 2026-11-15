@@ -3,13 +3,12 @@ import {
   FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, loadLandmarkers, poseFeature,
 } from '../vision.js'
 import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
-import { drawGhostOnPlayer } from '../stage/shade.js'
-import ShadesPanel from '../stage/ShadesPanel.jsx'
-import ScryingPool from '../stage/ScryingPool.jsx'
+import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
+import Roster from '../stage/Roster.jsx'
+import { snapshotPlan } from '../stage/snapshots.js'
 import '../stage/stage.css'
 
-const SNAPSHOT_AT = [0.2, 0.45, 0.7, 0.9] // fractions of the scene sent to Gemini
 const PRAISE = ['Ares approves!', 'Athena nods.', 'Apollo smiles upon you.', 'Zeus is watching…', 'Hermes takes note.', 'The Muse sings of this!']
 const STREAK_MS = 2500
 const PLAYER_COOLDOWN_MS = 9000
@@ -29,13 +28,14 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   const nPlayers = team.players.length
   const hasRef = !!scene.reference?.pose
+  const hasFilm = !!scene.video
   const charName = (id) => scene.characters.find((c) => c.id === id)?.name
   const charsOf = (pi) => Object.entries(team.assignments).filter(([, p]) => p === pi).map(([c]) => c)
 
   const setPhase = (p) => { live.current.phase = p; setPhaseState(p) }
 
-  // Stage clock shared with the guide cards and the film panel.
-  // Before "Action!" it loops the scene as a silent preview so players can study the Shades.
+  // Stage clock shared with the film panel and the favor meters.
+  // Before "Action!" it loops the scene as a silent preview so players can study the film.
   const getTime = useCallback(() => {
     const L = live.current
     const now = performance.now()
@@ -104,8 +104,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         const st = getTime()
         const dt = Math.min(0.25, (now - lastFrameAt) / 1000)
         lastFrameAt = now
-        const guides = hasRef ? updateMeters(poses, st, dt, now) : []
-        draw(canvas, v, poses, guides)
+        if (hasRef) updateMeters(poses, st, dt, now)
+        draw(canvas, v, poses)
         if (now - lastUi > 100) {
           lastUi = now
           setPresent(poses.map(Boolean))
@@ -117,21 +117,20 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       raf = requestAnimationFrame(loop)
     }
 
-    // Rolling (~1s) similarity between each player and their character's Shade at this instant.
+    // Rolling (~1s) similarity between each player and their film actor at this instant.
+    // Purely numeric: nothing is drawn on the webcam, players copy the film itself.
     function updateMeters(poses, st, dt, now) {
       const fps = scene.reference.fps || FEATURE_FPS
-      return poses.map((lm, i) => {
+      poses.forEach((lm, i) => {
         const c = guideCharacterFor(scene, charsOf(i), st)
         const ref = refFrameAt(scene.reference.pose[c], st, fps)
-        if (!ref) return null
-        const s = lm && !ref.resting ? similarity(poseFeature(lm), ref.frame) : null
+        const s = ref && lm && !ref.resting ? similarity(poseFeature(lm), ref.frame) : null
         if (s != null) {
           L.meter[i] = L.meter[i] == null ? s : L.meter[i] + (s - L.meter[i]) * Math.min(1, dt / 1.0)
         } else if (L.meter[i] != null) {
-          L.meter[i] = Math.max(0, L.meter[i] - 8 * dt) // slowly fade while out of frame / no guide
+          L.meter[i] = Math.max(0, L.meter[i] - 8 * dt) // slowly fade while out of frame / actor off screen
         }
         if (L.recording) praise(i, now)
-        return { ...ref, match: L.meter[i] }
       })
     }
 
@@ -153,7 +152,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
     }
 
-    function draw(canvas, v, poses, guides) {
+    function draw(canvas, v, poses) {
       const w = (canvas.width = v.videoWidth)
       const h = (canvas.height = v.videoHeight)
       const ctx = canvas.getContext('2d')
@@ -164,9 +163,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       g.addColorStop(1, 'rgba(10,6,14,.6)')
       ctx.fillStyle = g
       ctx.fillRect(0, 0, w, h)
+      // Identity only: a faint skeleton + name tag so players know they're being tracked.
       poses.forEach((p, i) => {
-        const gd = guides[i]
-        if (gd && p) drawGhostOnPlayer(ctx, gd.frame, p, w, h, { match: gd.match, resting: gd.resting })
         drawSkeleton(ctx, p, PLAYER_COLORS[i], `${team.players[i].name} · ${charsOf(i).map(charName).join('/')}`, w, h)
       })
     }
@@ -181,15 +179,16 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         }
         L.nextSample += 1 / FEATURE_FPS
       }
-      if (L.snapIdx < SNAPSHOT_AT.length && st >= SNAPSHOT_AT[L.snapIdx] * scene.duration) {
+      if (L.snapIdx < L.snapPlan.length && st >= L.snapPlan[L.snapIdx]) {
         L.snapIdx++
-        snapshot()
+        snapshot(st)
       }
       if (st >= scene.duration) finish()
     }
 
-    function snapshot() {
+    function snapshot(st) {
       const v = videoRef.current
+      L.snapTimes.push(+st.toFixed(2))
       const c = document.createElement('canvas')
       c.width = 640
       c.height = Math.round((640 * v.videoHeight) / v.videoWidth)
@@ -204,7 +203,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       cancelled = true
       cancelAnimationFrame(raf)
       L.recording = false
-      try { L.recorder?.state === 'recording' && L.recorder.stop() } catch { /* already stopped */ }
+      try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
       try { L.speech?.abort() } catch { /* not running */ }
       stream?.getTracks().forEach((tr) => tr.stop())
     }
@@ -231,6 +230,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.features = Array.from({ length: nPlayers }, () => ({ pose: [], face: [] }))
     L.nextSample = 0
     L.snaps = []
+    L.snapTimes = []
+    L.snapPlan = snapshotPlan(scene)
     L.snapIdx = 0
     L.transcript = []
     L.chunks = []
@@ -279,8 +280,12 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       L.recorder.onstop = () => resolve(new Blob(L.chunks, { type: L.recorder.mimeType || 'audio/webm' }))
       L.recorder.stop()
     })
-    if (L.snaps.length === 0) L.snapshot()
-    const frames = (await Promise.all(L.snaps)).filter(Boolean)
+    if (L.snaps.length === 0) L.snapshot(L.lastT)
+    // Keep frames and their times paired even if a toBlob() failed
+    const blobs = await Promise.all(L.snaps)
+    const frames = []
+    const snapshotTimes = []
+    blobs.forEach((b, k) => { if (b) { frames.push(b); snapshotTimes.push(L.snapTimes[k]) } })
     // Give the speech recognizer a moment to flush its last result
     await new Promise((r) => setTimeout(r, 600))
     onFinish({
@@ -292,6 +297,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         duration: L.lastT,
         features: { fps: FEATURE_FPS, players: L.features },
         browser_transcript: L.transcript,
+        snapshot_times: snapshotTimes,
       },
       audio,
       frames,
@@ -301,6 +307,58 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   // ---------------------------------------------------------------- render
   const progress = Math.min(1, t / scene.duration)
   const isLive = phase === 'live'
+
+  const camera = (
+    <div className="sg-frame">
+      <video ref={videoRef} className="sg-hidden-video" playsInline muted />
+      <canvas ref={canvasRef} className="sg-canvas" />
+      {hasFilm && <div className="sg-frame-label">You</div>}
+
+      {phase === 'loading' && !error && <div className="sg-overlay"><div className="sg-spinner" />Summoning the all-seeing eye…</div>}
+      {error && (
+        <div className="sg-overlay">
+          <p className="bad">{error}</p>
+          <button className="btn" onClick={onCancel}>Back</button>
+        </div>
+      )}
+
+      {phase === 'ready' && (
+        <div className="sg-overlay soft">
+          <h2 className="sg-overlay-title">Take your places</h2>
+          <p>
+            Stand left to right, upper body in frame.
+            {hasFilm && ' Watch the film beside you: when the scene begins, copy the actors and speak their lines.'}
+          </p>
+          <div className="row center-row">
+            <button className="btn big" onClick={begin}>Action!</button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'countdown' && <div className="sg-overlay sg-countdown" key={count}>{count || 'Action!'}</div>}
+      {phase === 'sending' && <div className="sg-overlay"><div className="sg-spinner" />Cut! Sending your performance to Olympus…</div>}
+
+      {isLive && !hasFilm && <Prompter scene={scene} team={team} t={t} />}
+      {isLive && <div className="sg-progress"><div style={{ width: `${progress * 100}%` }} /></div>}
+
+      <div className="sg-toasts">
+        {toasts.map((x) => (
+          <div key={x.id} className="sg-toast" style={{ '--pc': x.color }}>
+            <span className="sg-toast-name">{x.name}</span> {x.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  const plaques = (
+    <div className="sg-plaques">
+      {team.players.map((p, i) => (
+        <Plaque key={i} i={i} name={p.name} roles={charsOf(i).map(charName).join(' / ')}
+          present={present[i]} meter={meters[i]} hasRef={hasRef} />
+      ))}
+    </div>
+  )
 
   return (
     <div className="sg-wrap">
@@ -319,68 +377,33 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         </div>
       </header>
 
-      <div className="sg-grid">
-        <div className="sg-main">
-          <div className="sg-frame">
-            <video ref={videoRef} className="sg-hidden-video" playsInline muted />
-            <canvas ref={canvasRef} className="sg-canvas" />
-
-            {phase === 'loading' && !error && <div className="sg-overlay"><div className="sg-spinner" />Summoning the all-seeing eye…</div>}
-            {error && (
-              <div className="sg-overlay">
-                <p className="bad">{error}</p>
-                <button className="btn" onClick={onCancel}>Back</button>
-              </div>
-            )}
-
-            {phase === 'ready' && (
-              <div className="sg-overlay soft">
-                <h2 className="sg-overlay-title">Take your places</h2>
-                <p>
-                  Stand left to right, upper body in frame.
-                  {hasRef && ' Golden Shades show the pose to strike: match them to win the favor of the gods.'}
-                </p>
-                <div className="row center-row">
-                  <button className="btn big" onClick={begin}>Action!</button>
-                </div>
-              </div>
-            )}
-
-            {phase === 'countdown' && <div className="sg-overlay sg-countdown" key={count}>{count || 'Action!'}</div>}
-            {phase === 'sending' && <div className="sg-overlay"><div className="sg-spinner" />Cut! Sending your performance to Olympus…</div>}
-
-            {isLive && <Prompter scene={scene} team={team} t={t} />}
-            {isLive && <div className="sg-progress"><div style={{ width: `${progress * 100}%` }} /></div>}
-
-            <div className="sg-toasts">
-              {toasts.map((x) => (
-                <div key={x.id} className="sg-toast" style={{ '--pc': x.color }}>
-                  <span className="sg-toast-name">{x.name}</span> {x.text}
-                </div>
-              ))}
-            </div>
+      {hasFilm ? (
+        <>
+          <div className="sg-duo">
+            <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} />
+            {camera}
           </div>
-
-          <div className="sg-plaques">
-            {team.players.map((p, i) => (
-              <Plaque key={i} i={i} name={p.name} roles={charsOf(i).map(charName).join(' / ')}
-                present={present[i]} meter={meters[i]} hasRef={hasRef} />
-            ))}
+          <div className="sg-band">
+            {isLive ? <Prompter scene={scene} team={team} t={t} /> : (
+              <div className="sg-band-idle">The lines will appear here, in time with the film.</div>
+            )}
           </div>
-        </div>
-
-        <aside className="sg-side">
-          {scene.video && <ScryingPool src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} />}
-          <ShadesPanel scene={scene} team={team} getTime={getTime} />
-        </aside>
-      </div>
+          {plaques}
+        </>
+      ) : (
+        <>
+          {camera}
+          {plaques}
+          <Roster scene={scene} team={team} t={isLive ? t : null} />
+        </>
+      )}
     </div>
   )
 }
 
 function Plaque({ i, name, roles, present, meter, hasRef }) {
   const pct = meter ?? 0
-  const label = !present ? 'Step into the light' : !hasRef ? 'In frame' : meter == null ? 'Seeking a Shade…' : favorWord(pct)
+  const label = !present ? 'Step into the light' : !hasRef ? 'In frame' : meter == null ? 'Watching the film…' : favorWord(pct)
   return (
     <div className={`sg-plaque ${present ? 'here' : ''}`} style={{ '--pc': PLAYER_COLORS[i] }}>
       <div className="sg-plaque-top">
@@ -392,7 +415,7 @@ function Plaque({ i, name, roles, present, meter, hasRef }) {
         {hasRef && present && meter != null && <span className="sg-plaque-num">{Math.round(pct)}</span>}
       </div>
       {hasRef && (
-        <div className="sg-favor" title="Favor of the Gods: how closely you match your Shade">
+        <div className="sg-favor" title="Favor of the Gods: how closely you match your film actor">
           <span className="sg-laurel">❧</span>
           <div className="sg-favor-bar"><div style={{ width: `${present ? pct : 0}%` }} /></div>
           <span className="sg-laurel flip">❧</span>
