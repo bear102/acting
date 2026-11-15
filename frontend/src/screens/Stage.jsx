@@ -47,7 +47,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
   const [hold, setHold] = useState(null) // { player, character, at } while the take is held at a cut
   const [pauses, setPauses] = useState(readHoldsPref) // hold at shot changes (setting, remembered)
   live.current.pauses = pauses // read by startRecording, which may run from an older render's closure
-  const canPause = shotHolds(scene.reference?.shots, team.assignments, scene.duration).length > 0
+  const canPause = shotHolds(scene.reference?.shots, team.assignments, scene.duration, scene.lines).length > 0
   const togglePauses = () => setPauses((on) => { writeHoldsPref(!on); return !on })
   const fullscreen = useFullscreen()
 
@@ -84,6 +84,8 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     return ((now - L.previewStart) / 1000) % Math.max(1, scene.duration)
   }, [scene.duration])
   const getPhase = useCallback(() => live.current.phase, [])
+  // During a hold the film parks on the first frame of the new shot (may be just after the hold time)
+  const getPark = useCallback(() => live.current.hold?.park ?? null, [])
 
   // ---------------------------------------------------------------- camera + detection + render loop
   //
@@ -300,7 +302,9 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
       ctx.clearRect(0, 0, w, h)
       // A faint skeleton + name tag so players know they're tracked; during a take, whoever's line
       // it is gets their name tag filled in their colour.
-      poses.forEach((p, i) => drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h, i === speaker))
+      poses.forEach((p, i) => { if (i !== speaker) drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h, false) })
+      // the speaker last, so a neighbour's tag never covers theirs
+      if (speaker >= 0) drawSkeleton(ctx, poses[speaker], PLAYER_COLORS[speaker], labels[speaker], w, h, true)
     }
 
     function drawDebug(canvas, now) {
@@ -464,7 +468,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = L.pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration) : []
+    L.holds = L.pauses ? shotHolds(scene.reference?.shots, team.assignments, scene.duration, scene.lines) : []
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -698,7 +702,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
         <>
           <div className="sg-duo">
             <div className="sg-cell sg-cell-film">
-              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} />
+              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} getPark={getPark} />
             </div>
             <div className="sg-cell sg-cell-cam">{camera}</div>
           </div>

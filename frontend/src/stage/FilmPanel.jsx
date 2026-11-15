@@ -17,14 +17,16 @@ function writePref(on) {
 // The film clip the players imitate, slaved to the stage clock:
 //   ready     -> loops for study (getTime returns a looping preview clock)
 //   countdown -> parked on frame 0
-//   hold      -> parked on the first frame of the new shot (stage/holds.js)
+//   hold      -> parked on the first frame of the new shot, even when the hold comes just before
+//                the cut (stage/holds.js `park`); then straight back to the take time
 //   live      -> plays from t=0; small drift is absorbed by nudging playbackRate, big jumps seek
 //   sending   -> paused
 // Audible at full volume (see PREVIEW_VOLUME / TAKE_VOLUME above).
 // Memoized: its props are stable, so the stage's ~10 Hz re-renders never touch the film.
-export default memo(function FilmPanel({ src, getTime, getPhase }) {
+export default memo(function FilmPanel({ src, getTime, getPhase, getPark }) {
   const ref = useRef(null)
   const lastSeek = useRef(-Infinity)
+  const wasHold = useRef(false)
   const [hear, setHear] = useState(readPref)
 
   useEffect(() => {
@@ -41,17 +43,25 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       const t = getTime()
       const vol = phase === 'live' || phase === 'hold' ? TAKE_VOLUME : PREVIEW_VOLUME
       if (Math.abs(v.volume - vol) > 0.001) v.volume = vol
+      const heldBefore = wasHold.current
+      wasHold.current = phase === 'hold'
       if (phase === 'sending' || phase === 'loading' || t == null) {
         if (!v.paused) v.pause()
         return
       }
-      const target = Math.min(Math.max(0, t), v.duration - 0.05)
+      const park = phase === 'hold' ? getPark?.() : null
+      const target = Math.min(Math.max(0, park ?? t), v.duration - 0.05)
       const drift = v.currentTime - target
       const now = performance.now()
       // Seeking stalls decoding (and on a busy laptop can snowball into a seek storm), so only
       // seek for big jumps (start, preview loop wrap, long stalls) and at most once a second;
       // absorb small drift by nudging the playback rate instead.
-      if (phase === 'hold') {
+      if (heldBefore && phase !== 'hold') {
+        // Hold over: the parked frame can be ahead of the take; jump straight back in sync
+        v.currentTime = target
+        lastSeek.current = now
+        v.playbackRate = 1
+      } else if (phase === 'hold') {
         // Parked at a shot change: show exactly the frame the players should match. The target
         // doesn't move during a hold, so this seeks once.
         if (Math.abs(drift) > 0.03 && !v.seeking) { v.currentTime = target; lastSeek.current = now }
