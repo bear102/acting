@@ -1,0 +1,118 @@
+/* ---------- Odyssey frame ----------
+   --t: running-wave band thickness, --k: Greek-key strip, --f: total frame thickness,
+   --tile: wave tile length along the band (tile is 24x16, so tile = t * 1.5),
+   --c: corner volute size. */
+.of-root { --t: 14px; --k: 7px; --f: 21px; --tile: 21px; --c: 46px; }
+.of-root.of-thin { --t: 10px; --k: 0px; --f: 10px; --tile: 15px; --c: 28px; }
+
+.of-frame { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+.of-shell { position: relative; min-height: 100vh; padding: var(--f); }
+
+.of-band {
+  position: fixed;
+  background: linear-gradient(180deg, #0d1426, #070b17);
+  box-shadow: 0 0 18px rgba(232, 184, 74, .12);
+  overflow: hidden;
+}
+.of-band::before, .of-band::after { content: ''; position: absolute; }
+/* the travelling wave */
+.of-band::before { background-image: var(--wave); filter: drop-shadow(0 0 3px rgba(232, 184, 74, .45)); }
+/* the static Greek key on the inner edge */
+.of-band::after { background-image: var(--key); opacity: .85; }
+
+.of-top, .of-bottom { left: 0; right: 0; height: var(--f); }
+.of-top { top: 0; }
+.of-bottom { bottom: 0; }
+.of-left, .of-right { top: 0; bottom: 0; width: var(--f); }
+.of-left { left: 0; }
+.of-right { right: 0; }
+
+/* horizontal bands: wave on the outer edge, key on the inner edge */
+.of-top::before, .of-bottom::before { left: 0; right: 0; height: var(--t); background-size: var(--tile) var(--t); background-repeat: repeat-x; }
+.of-top::after, .of-bottom::after { left: 0; right: 0; height: var(--k); background-size: calc(var(--k) * 2) var(--k); background-repeat: repeat-x; }
+.of-top::before { top: 0; }
+.of-top::after { bottom: 0; }
+.of-bottom::before { bottom: 0; transform: scaleY(-1); }
+.of-bottom::after { top: 0; transform: scaleY(-1); }
+
+/* vertical bands */
+.of-left::before, .of-right::before { top: 0; bottom: 0; width: var(--t); background-size: var(--t) var(--tile); background-repeat: repeat-y; }
+.of-left::after, .of-right::after { top: 0; bottom: 0; width: var(--k); background-size: var(--k) calc(var(--k) * 2); background-repeat: repeat-y; }
+.of-right::before { right: 0; }
+.of-right::after { left: 0; }
+.of-left::before { left: 0; transform: scaleX(-1); }
+.of-left::after { right: 0; transform: scaleX(-1); }
+
+/* The scroll travels clockwise around the page: right along the top, down the right side,
+   left along the bottom, up the left side. One tile per cycle keeps it seamless. */
+.of-full .of-top::before { animation: of-east-21 1.6s linear infinite; }
+.of-full .of-bottom::before { animation: of-west-21 1.6s linear infinite; }
+.of-full .of-right::before { animation: of-south-21 1.6s linear infinite; }
+.of-full .of-left::before { animation: of-north-21 1.6s linear infinite; }
+.of-thin .of-top::before { animation: of-east-15 1.6s linear infinite; }
+.of-thin .of-bottom::before { animation: of-west-15 1.6s linear infinite; }
+.of-thin .of-right::before { animation: of-south-15 1.6s linear infinite; }
+.of-thin .of-left::before { animation: of-north-15 1.6s linear infinite; }
+@keyframes of-east-21 { to { background-position: 21px 0; } }
+@keyframes of-west-21 { to { background-position: -21px 0; } }
+@keyframes of-south-21 { to { background-position: 0 21px; } }
+@keyframes of-north-21 { to { background-position: 0 -21px; } }
+@keyframes of-east-15 { to { background-position: 15px 0; } }
+@keyframes of-west-15 { to { background-position: -15px 0; } }
+@keyframes of-south-15 { to { background-position: 0 15px; } }
+@keyframes of-north-15 { to { background-position: 0 -15px; } }
+
+/* corner volutes */
+.of-corner { position: fixed; width: var(--c); height: var(--c); filter: drop-shadow(0 0 8px rgba(232, 184, 74, .35)); }
+.of-corner svg { width: 100%; height: 100%; display: block; }
+.of-tl { top: 0; left: 0; }
+.of-tr { top: 0; right: 0; transform: scaleX(-1); }
+.of-bl { bottom: 0; left: 0; transform: scaleY(-1); }
+.of-br { bottom: 0; right: 0; transform: scale(-1, -1); }
+.of-volute path:first-of-type, .of-volute path:nth-of-type(2) { transform-origin: center; }
+
+/* gentle shimmer on the corner capitals */
+.of-full .of-corner { animation: of-glint 6s ease-in-out infinite; }
+.of-full .of-tr { animation-delay: 1.5s; }
+.of-full .of-br { animation-delay: 3s; }
+.of-full .of-bl { animation-delay: 4.5s; }
+@keyframes of-glint { 50% { filter: drop-shadow(0 0 14px rgba(243, 213, 140, .6)); } }
+
+/* Large monitors: a touch more presence */
+@media (min-width: 1700px) {
+  .of-root.of-full { --t: 16px; --k: 8px; --f: 24px; --tile: 24px; --c: 54px; }
+  .of-full .of-top::before { animation-name: of-east-24; }
+  .of-full .of-bottom::before { animation-name: of-west-24; }
+  .of-full .of-right::before { animation-name: of-south-24; }
+  .of-full .of-left::before { animation-name: of-north-24; }
+}
+@keyframes of-east-24 { to { background-position: 24px 0; } }
+@keyframes of-west-24 { to { background-position: -24px 0; } }
+@keyframes of-south-24 { to { background-position: 0 24px; } }
+@keyframes of-north-24 { to { background-position: 0 -24px; } }
+
+/* Short laptop screens (1366x768 etc.): keep the frame slim */
+@media (max-height: 820px) {
+  .of-root.of-full { --t: 12px; --k: 6px; --f: 18px; --tile: 18px; --c: 40px; }
+  .of-full .of-top::before { animation-name: of-east-18; }
+  .of-full .of-bottom::before { animation-name: of-west-18; }
+  .of-full .of-right::before { animation-name: of-south-18; }
+  .of-full .of-left::before { animation-name: of-north-18; }
+}
+@keyframes of-east-18 { to { background-position: 18px 0; } }
+@keyframes of-west-18 { to { background-position: -18px 0; } }
+@keyframes of-south-18 { to { background-position: 0 18px; } }
+@keyframes of-north-18 { to { background-position: 0 -18px; } }
+
+/* Phones: top and bottom bands only, thin */
+@media (max-width: 600px) {
+  .of-root, .of-root.of-full { --t: 10px; --k: 0px; --f: 10px; --tile: 15px; --c: 26px; }
+  .of-left, .of-right { display: none; }
+  .of-shell { padding-left: 0; padding-right: 0; }
+  .of-full .of-top::before { animation-name: of-east-15; }
+  .of-full .of-bottom::before { animation-name: of-west-15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of-band::before, .of-corner { animation: none !important; }
+}

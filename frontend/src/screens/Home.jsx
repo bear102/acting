@@ -1,40 +1,74 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
-import { Helmet, Lyre, Meander, Owl, Rose, Ship } from '../ui/Art.jsx'
+import { Helmet, Lyre, Owl, Rose, Ship } from '../ui/Art.jsx'
+import { IonicColumn, Pediment, Rosette, SeaVoyage } from '../theme/Temple.jsx'
+import '../theme/home.css'
+
+// Odyssey I.1, Samuel Butler's translation (public domain)
+const PROEM = 'Tell me, O Muse, of that ingenious hero who travelled far and wide after he had sacked the famous town of Troy.'
+
+const GODS = [
+  [Owl, 'Athena', 'Words'],
+  [Lyre, 'Apollo', 'Voice'],
+  [Helmet, 'Ares', 'Movement'],
+  [Rose, 'Aphrodite', 'Emotion'],
+]
 
 export default function Home({ onStart, onHall }) {
   const [health, setHealth] = useState(null)
   useEffect(() => { api.health().then(setHealth).catch(() => setHealth({ ok: false })) }, [])
 
   return (
-    <div className="home">
-      <p className="eyebrow">HackUTA ’26 · Sing, O Muse</p>
-      <h1 className="title">
-        <span className="title-small">The</span>
-        Trials of<br />Odysseus
-      </h1>
-      <Meander className="short" />
-      <p className="tagline">
-        Choose a scene from the Odyssey. Gather your crew. Follow the <em>Shades</em> of the actors who
-        came before, and perform before the camera. The gods of Olympus will judge your words, your
-        voice, your body and your soul.
+    <div className="oh">
+      <header className="oh-temple">
+        <Pediment className="oh-pediment" />
+        <div className="oh-portico">
+          <IonicColumn className="oh-column" />
+          <div className="oh-title-block">
+            <p className="eyebrow">HackUTA ’26 · An acting trial before the gods</p>
+            <h1 className="title oh-title">
+              <span className="title-small">The</span>
+              Trials of<br />Odysseus
+            </h1>
+          </div>
+          <IonicColumn className="oh-column" />
+        </div>
+        <div className="oh-stylobate" />
+      </header>
+
+      <blockquote className="oh-proem">
+        <p>
+          {PROEM.split(' ').map((w, i) => (
+            <span key={i} style={{ '--i': i }}>{w} </span>
+          ))}
+        </p>
+        <cite>Homer, <em>Odyssey</em> I · tr. Samuel Butler</cite>
+      </blockquote>
+
+      <p className="tagline oh-tagline">
+        Choose a scene. Gather your crew. Watch the film, then perform it before the camera,
+        and the gods of Olympus will judge your words, your voice, your body and your soul.
       </p>
-      <div className="row center-row">
-        <button className="btn big" onClick={onStart}>Begin your trial</button>
+
+      <div className="oh-actions">
+        <button className="oh-shield" onClick={onStart}>
+          <Rosette className="oh-boss" />
+          <span>Begin your trial</span>
+        </button>
         <button className="btn ghost" onClick={onHall}>Hall of Heroes</button>
       </div>
 
-      <div className="home-gods">
-        {[[Owl, 'Athena', 'Words'], [Lyre, 'Apollo', 'Voice'], [Helmet, 'Ares', 'Movement'], [Rose, 'Aphrodite', 'Emotion']].map(([Art, name, dom]) => (
-          <div key={name} className="home-god">
-            <Art className="home-god-art" />
-            <span className="home-god-name">{name}</span>
-            <span className="muted small">{dom}</span>
-          </div>
+      <ul className="oh-gods" aria-label="The judges">
+        {GODS.map(([Art, name, dom], k) => (
+          <li key={name} className="oh-medallion" style={{ '--k': k }}>
+            <div className="oh-medal-disc"><Art className="oh-medal-art" /></div>
+            <span className="oh-god-name">{name}</span>
+            <span className="oh-god-domain">judges {dom.toLowerCase()}</span>
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <div className="voyage" aria-hidden="true"><Ship className="voyage-ship" /></div>
+      <SeaVoyage><Ship className="oh-ship" /></SeaVoyage>
 
       <div className="status">
         {health === null ? 'Consulting the oracle…' : !health.ok ? (
