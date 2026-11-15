@@ -28,10 +28,15 @@ export default function SceneSelect({ onPick, onBack }) {
       {error && <p className="bad">{error}</p>}
       {!scenes && !error && <p className="muted ss-loading">Unrolling the sea charts…</p>}
 
+      {/* Laptops: chart (sticky) beside the trial cards, so a trial is pickable without scrolling */}
+      <div className="ss-voyage">
       {scenes?.length > 0 && (
-        <VoyageMap scenes={scenes} hovered={hovered} onHover={setHovered} onPick={onPick} />
+        <div className="ss-voyage-map">
+          <VoyageMap scenes={scenes} hovered={hovered} onHover={setHovered} onPick={onPick} />
+        </div>
       )}
 
+      <div className="ss-voyage-list">
       {film.length > 0 && (
         <section className="ss-section">
           <h3 className="section-title ss-section-title"><span>From the film</span></h3>
@@ -60,6 +65,8 @@ export default function SceneSelect({ onPick, onBack }) {
           </div>
         </section>
       )}
+      </div>
+      </div>
       <Meander className="short" />
     </div>
   )
