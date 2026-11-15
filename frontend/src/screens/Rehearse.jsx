@@ -10,7 +10,19 @@ export default function Rehearse({ scene, team, onBack, onGo }) {
   const [clipTime, setClipTime] = useState(-1)
   const stopRef = useRef(false)
   const lineRefs = useRef([])
+  const clipRef = useRef(null)
   useEffect(() => () => { stopRef.current = true; window.speechSynthesis?.cancel() }, [])
+
+  // The film starts by itself on arrival. The "Set sail" click counts as the gesture browsers
+  // require for sound; if one refuses anyway, play it muted rather than not at all.
+  useEffect(() => {
+    const v = clipRef.current
+    if (!v) return
+    v.play().catch(() => {
+      v.muted = true
+      v.play().catch(() => { /* autoplay fully blocked: the controls still work */ })
+    })
+  }, [])
 
   const charName = (id) => scene.characters.find((c) => c.id === id)?.name
   const playerOf = (id) => team.assignments[id]
@@ -68,7 +80,7 @@ export default function Rehearse({ scene, team, onBack, onGo }) {
           <figure className="ss-frame">
             <figcaption>Watch the Shades of the past</figcaption>
             <div className="ss-frame-inner">
-              <video src={`/${scene.video}`} controls playsInline
+              <video ref={clipRef} src={`/${scene.video}`} controls playsInline
                 onTimeUpdate={(e) => setClipTime(e.currentTarget.currentTime)}
                 onEnded={() => setClipTime(-1)} />
             </div>

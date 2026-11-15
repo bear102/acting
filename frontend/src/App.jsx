@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from './api.js'
 import Home from './screens/Home.jsx'
 import SceneSelect from './screens/SceneSelect.jsx'
@@ -19,6 +19,19 @@ export default function App() {
   const [team, setTeam] = useState(null) // { name, players: [{name}], assignments: {charId: playerIdx} }
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [snaps, setSnaps] = useState([]) // [{t, url}] the players' own snapshots, for the verdict reel
+
+  // Dev only: /?preview=verdict opens the verdict on a canned take, no camera or backend needed.
+  useEffect(() => {
+    if (!import.meta.env.DEV || new URLSearchParams(location.search).get('preview') !== 'verdict') return
+    import('./dev/mockVerdict.js').then((m) => {
+      setScene(m.scene)
+      setTeam(m.team)
+      setSnaps(m.snaps)
+      setResult(m.result)
+      setScreen('verdict')
+    })
+  }, [])
 
   const pickScene = async (id) => {
     setScene(await api.scene(id))
@@ -28,6 +41,8 @@ export default function App() {
   const submit = async (take) => {
     setScreen('judging')
     setError(null)
+    snaps.forEach((s) => URL.revokeObjectURL(s.url))
+    setSnaps(take.frames.map((blob, i) => ({ t: take.meta.snapshot_times[i], url: URL.createObjectURL(blob) })))
     try {
       setResult(await api.perform(take))
       setScreen('verdict')
@@ -65,7 +80,7 @@ export default function App() {
         </div>
       )}
       {screen === 'verdict' && (
-        <Verdict result={result} scene={scene} team={team}
+        <Verdict result={result} scene={scene} team={team} snaps={snaps}
           onRetry={() => setScreen('stage')}
           onNew={() => setScreen('scenes')}
           onHall={() => setScreen('hall')} />

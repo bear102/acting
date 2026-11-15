@@ -116,28 +116,41 @@ def word_sim(a: str, b: str) -> float:
     return s if s >= need else 0.0
 
 
-def align(script: list[str], heard: list[str]) -> list[tuple[int, int, float]]:
-    """Order-preserving best alignment (weighted LCS). -> [(script_i, heard_j, credit)]."""
+_TIE_EPS = 0.001  # per-word timing bonus: far too small to outvote real word credit
+
+
+def align(script: list[str], heard: list[str], near: np.ndarray | None = None) -> list[tuple[int, int, float]]:
+    """Order-preserving best alignment (weighted LCS). -> [(script_i, heard_j, credit)].
+
+    A phrase can fit two places in a script ("...until the trial's over." / "The trial is over.").
+    `near[i, j]` in 0..1 says how close in time heard word j was to script word i's line; it only
+    breaks ties between alignments of equal credit, so the words land on the line they were said in.
+    """
     n, m = len(script), len(heard)
     if n == 0 or m == 0:
         return []
     sim = np.array([[word_sim(a, b) for b in heard] for a in script])
+    gain = sim + (_TIE_EPS * near if near is not None else 0.0)
     dp = np.zeros((n + 1, m + 1))
     for i in range(1, n + 1):
         for j in range(1, m + 1):
             best = max(dp[i - 1, j], dp[i, j - 1])
             if sim[i - 1, j - 1] > 0:
-                best = max(best, dp[i - 1, j - 1] + sim[i - 1, j - 1])
+                best = max(best, dp[i - 1, j - 1] + gain[i - 1, j - 1])
             dp[i, j] = best
+    # Walk back preferring to skip: with no timing to go on, this pins each heard word to the
+    # EARLIEST script word it can stand for, so a word that recurs later in the script ("Noman")
+    # is credited to the line that was spoken first, not to the last line that contains it.
+    # (Exact-ish comparison: np.isclose's default tolerance is wider than the timing bonus.)
     out, i, j = [], n, m
     while i > 0 and j > 0:
-        if sim[i - 1, j - 1] > 0 and np.isclose(dp[i, j], dp[i - 1, j - 1] + sim[i - 1, j - 1]):
+        if abs(dp[i, j] - dp[i - 1, j]) < 1e-9:
+            i -= 1
+        elif abs(dp[i, j] - dp[i, j - 1]) < 1e-9:
+            j -= 1
+        else:
             out.append((i - 1, j - 1, float(sim[i - 1, j - 1])))
             i, j = i - 1, j - 1
-        elif np.isclose(dp[i, j], dp[i - 1, j]):
-            i -= 1
-        else:
-            j -= 1
     return out[::-1]
 
 
@@ -169,7 +182,20 @@ def judge_athena(scene: dict, heard_words: list[dict]) -> dict:
             h_end.append(hw.get("end"))
             h_raw.append(hw["text"])
 
-    matches = _supported(align(script, heard), script)
+    # How near in time each heard word is to where its script word falls in the film (the line's
+    # span, spread evenly over its words); fades over a couple of seconds, 0 without timestamps.
+    near = None
+    if script and any(t is not None for t in h_start):
+        per_line = np.bincount(owner, minlength=len(scene["lines"]))
+        first = np.concatenate([[0], np.cumsum(per_line)[:-1]])
+        due = np.array([
+            scene["lines"][o]["start"]
+            + (i - first[o] + 0.5) / per_line[o] * (scene["lines"][o]["end"] - scene["lines"][o]["start"])
+            for i, o in enumerate(owner)])[:, None]
+        t = np.array([np.nan if s is None else s for s in h_start], dtype=float)[None, :]
+        near = np.nan_to_num(np.exp(-np.abs(t - due) / 2.0))
+
+    matches = _supported(align(script, heard, near), script)
     credit = {i: (j, c) for i, j, c in matches}
 
     per_line = []
@@ -183,6 +209,17 @@ def judge_athena(scene: dict, heard_words: list[dict]) -> dict:
         if last_j is not None:
             end = h_end[last_j] if h_end[last_j] is not None else h_start[last_j] + 0.35
         acc = 100 * sum(c for _, c in got) / max(1, len(idxs))
+        # Word-by-word credit against the script as written (a contraction is one token, two words)
+        tokens, k = [], 0
+        for tok in line["text"].split():
+            n = len(words(tok))
+            if n == 0:  # a bare dash or other punctuation: glue it to the previous word
+                if tokens:
+                    tokens[-1]["w"] += " " + tok
+                continue
+            cs = [credit[i][1] if i in credit else 0.0 for i in idxs[k:k + n]]
+            k += n
+            tokens.append({"w": tok, "hit": round(sum(cs) / n, 2)})
         per_line.append({
             "line": li,
             "character": line["character"],
@@ -193,6 +230,7 @@ def judge_athena(scene: dict, heard_words: list[dict]) -> dict:
             "heard_at": first,
             "heard_end": end,
             "cue_at": line["start"],
+            "words": tokens,
         })
 
     total_credit = sum(c for _, _, c in matches)

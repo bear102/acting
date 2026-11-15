@@ -8,16 +8,18 @@ export const api = {
   scenes: () => fetch('/api/scenes').then(json),
   scene: (id) => fetch(`/api/scenes/${id}`).then(json),
   leaderboard: (sceneId) => fetch(`/api/leaderboard${sceneId ? `?scene_id=${sceneId}` : ''}`).then(json),
-  perform: ({ meta, audio, frames }) => {
+  perform: ({ meta, audio, frames, video }) => {
     const fd = new FormData()
     fd.append('meta', JSON.stringify(meta))
     if (audio) fd.append('audio', audio, 'take.webm')
+    // Raw (un-mirrored) webcam recording of the take; the server runs full pose + face analysis on it
+    if (video) fd.append('video', video, 'take_video.webm')
     frames.forEach((f, i) => fd.append('frames', f, `frame${i}.jpg`))
     return fetch('/api/perform', { method: 'POST', body: fd }).then(json)
   },
 }
 
-// Browser text-to-speech, used for rehearsal read-throughs and as Zeus's backup voice.
+// Browser text-to-speech, used for rehearsal read-throughs.
 export function speak(text, { pitch = 1, rate = 1 } = {}) {
   return new Promise((resolve) => {
     if (!window.speechSynthesis) return resolve()
