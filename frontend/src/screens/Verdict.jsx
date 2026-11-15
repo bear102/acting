@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { speak } from '../api.js'
+import { useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../vision.js'
 import { Bolt, GOD_ART, Laurel, Meander } from '../ui/Art.jsx'
 
@@ -15,10 +14,9 @@ const STT_NAMES = { elevenlabs: 'ElevenLabs Scribe', whisper: 'Whisper', browser
 export default function Verdict({ result, scene, team, onRetry, onNew, onHall }) {
   const [kleos, setKleos] = useState(0)
   const [revealed, setRevealed] = useState(0)
-  const audioRef = useRef(null)
   const charName = (id) => scene.characters.find((c) => c.id === id)?.name || id
 
-  // Count-up, then reveal the gods one by one, then Zeus speaks
+  // Count-up, then reveal the gods one by one, then Zeus's written verdict
   useEffect(() => {
     let raf
     const t0 = performance.now()
@@ -29,26 +27,12 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
     }
     raf = requestAnimationFrame(step)
     const timers = GODS.map((_, i) => setTimeout(() => setRevealed(i + 1), 700 + i * 650))
-    timers.push(setTimeout(zeusSpeaks, 700 + GODS.length * 650 + 300))
     return () => {
       cancelAnimationFrame(raf)
       timers.forEach(clearTimeout)
-      audioRef.current?.pause()
-      window.speechSynthesis?.cancel()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result])
-
-  function zeusSpeaks() {
-    audioRef.current?.pause()
-    window.speechSynthesis?.cancel()
-    if (result.zeus_audio) {
-      audioRef.current = new Audio(`data:audio/mpeg;base64,${result.zeus_audio}`)
-      audioRef.current.play().catch(() => {})
-    } else {
-      speak(result.verdict.zeus, { pitch: 0.6, rate: 0.92 })
-    }
-  }
 
   return (
     <div className="panel verdict">
@@ -96,9 +80,8 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
       </div>
 
       <div className={`zeus ${revealed >= GODS.length ? 'in' : ''}`}>
-        <div className="zeus-head"><Bolt className="zeus-icon" /> Zeus speaks</div>
+        <div className="zeus-head"><Bolt className="zeus-icon" /> The verdict of Zeus</div>
         <p>{result.verdict.zeus}</p>
-        <button className="link" onClick={zeusSpeaks}>🔊 Hear again</button>
       </div>
 
       {result.stars?.length > 0 && (
