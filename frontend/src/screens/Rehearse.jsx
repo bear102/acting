@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { speak } from '../api.js'
 import { PLAYER_COLORS } from '../vision.js'
-import { Meander } from '../ui/Art.jsx'
-
-const EMOTION_ICONS = {
-  rage: '😠', fear: '😨', joy: '😄', sorrow: '😢', cunning: '😏', awe: '😲', resolve: '😤', longing: '🥺',
-}
+import { Flame, MaskArt } from './setup/icons.jsx'
+import { EMOTION_ICONS } from './setup/constants.js'
+import './setup/setup.css'
 
 export default function Rehearse({ scene, team, onBack, onGo }) {
   const [reading, setReading] = useState(-1)
@@ -38,74 +36,83 @@ export default function Rehearse({ scene, team, onBack, onGo }) {
     }
     setReading(-1)
   }
+  const stopReading = () => { stopRef.current = true; window.speechSynthesis?.cancel() }
 
   return (
-    <div className="panel">
+    <div className="panel ss-screen ss-rehearse">
       <button className="link" onClick={onBack}>← Back to the crew</button>
-      <p className="eyebrow">Rehearsal · {scene.book}</p>
-      <h2>{scene.title}</h2>
+      <header className="ss-head ss-hearth-head">
+        <Flame className="ss-flame" />
+        <div>
+          <p className="eyebrow">Rehearsal at the hearth · {scene.book}</p>
+          <h2>{scene.title}</h2>
+        </div>
+        <Flame className="ss-flame" />
+      </header>
 
-      <div className="cast-strip">
-        {scene.characters.map((c) => {
+      <div className="ss-cast-strip" aria-label="Who plays whom">
+        {scene.characters.map((c, ci) => {
           const p = playerOf(c.id)
           return (
-            <span key={c.id} className="cast-pill" style={{ borderColor: PLAYER_COLORS[p] }}>
-              <strong style={{ color: PLAYER_COLORS[p] }}>{team.players[p].name}</strong>
-              <span className="muted"> as </span>{c.name}
+            <span key={c.id} className="ss-cast-pill" style={{ '--pc': PLAYER_COLORS[p] }}>
+              <MaskArt tragic={ci % 2 === 1} className="ss-pill-mask" />
+              <strong>{team.players[p].name}</strong>
+              <span className="muted">as</span> {c.name}
             </span>
           )
         })}
       </div>
 
-      <div className={scene.video ? 'rehearse-grid' : ''}>
+      <div className={scene.video ? 'ss-rehearse-grid' : 'ss-rehearse-single'}>
         {scene.video && (
-          <figure className="ornate">
+          <figure className="ss-frame">
             <figcaption>Watch the Shades of the past</figcaption>
-            <video className="clip" src={`/${scene.video}`} controls playsInline
-              onTimeUpdate={(e) => setClipTime(e.currentTarget.currentTime)}
-              onEnded={() => setClipTime(-1)} />
+            <div className="ss-frame-inner">
+              <video src={`/${scene.video}`} controls playsInline
+                onTimeUpdate={(e) => setClipTime(e.currentTarget.currentTime)}
+                onEnded={() => setClipTime(-1)} />
+            </div>
             <p className="muted small">
-              Study how they move. On stage, their ghostly outlines will guide you.
+              Study every glance and gesture. On stage this scene plays beside you. Mirror it as it happens.
             </p>
           </figure>
         )}
 
-        <div>
+        <div className="ss-papyrus" role="list" aria-label="Script">
           {!scene.video && (
-            <p className="muted">
+            <p className="ss-papyrus-note">
               Study the scroll. Each line shows the emotion the gods will look for on your face.
             </p>
           )}
-          <Meander className="short left" />
-          <div className="script">
-            {scene.lines.map((l, i) => {
-              const p = playerOf(l.character)
-              return (
-                <div key={i} ref={(el) => { lineRefs.current[i] = el }}
-                  className={`script-line ${active === i ? 'reading' : ''}`}
-                  style={{ borderLeftColor: PLAYER_COLORS[p] }}>
-                  <div className="who" style={{ color: PLAYER_COLORS[p] }}>
-                    {charName(l.character)} <small>({team.players[p].name})</small>
-                    {l.emotion && <span className="emo">{EMOTION_ICONS[l.emotion]} {l.emotion}</span>}
-                  </div>
-                  <div className="text">{l.text}</div>
-                  {l.direction && <div className="direction">{l.direction}</div>}
+          {scene.lines.map((l, i) => {
+            const p = playerOf(l.character)
+            return (
+              <div key={i} role="listitem" ref={(el) => { lineRefs.current[i] = el }}
+                className={`ss-line ${active === i ? 'on' : ''}`} style={{ '--pc': PLAYER_COLORS[p] }}>
+                <div className="ss-line-who">
+                  <span className="ss-line-char">{charName(l.character)}</span>
+                  <span className="ss-line-player">{team.players[p].name}</span>
+                  {l.emotion && (
+                    <span className="ss-line-emo" title={`Emotion: ${l.emotion}`}>
+                      {EMOTION_ICONS[l.emotion]} {l.emotion}
+                    </span>
+                  )}
                 </div>
-              )
-            })}
-          </div>
+                <div className="ss-line-text">{l.text}</div>
+                {l.direction && <div className="ss-line-dir">{l.direction}</div>}
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      <div className="row">
+      <div className="ss-cta-row">
         {reading < 0 ? (
           <button className="btn ghost" onClick={readThrough}>🔊 Hear the read-through</button>
         ) : (
-          <button className="btn ghost" onClick={() => { stopRef.current = true; window.speechSynthesis?.cancel() }}>
-            ■ Stop
-          </button>
+          <button className="btn ghost" onClick={stopReading}>■ Stop</button>
         )}
-        <button className="btn big" onClick={onGo}>Take the stage →</button>
+        <button className="btn big ss-cta" onClick={onGo}>Take the stage →</button>
       </div>
     </div>
   )
