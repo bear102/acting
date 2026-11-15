@@ -93,8 +93,10 @@ def get_scene(scene_id: str):
     if not s:
         raise HTTPException(404, "No such scene")
     ref = s.get("reference") or {}
-    # The stage only needs shots + the reference skeletons (ghost figures); face/audio stay server-side.
-    slim = {"fps": ref.get("fps"), "shots": ref.get("shots") or [], "pose": ref.get("pose")} if ref.get("pose") else None
+    # The stage only needs shots, the reference skeletons (ghost figures) and the film's speech mask
+    # (which finds the breaks inside a line for the pauses); face and the rest of audio stay server-side.
+    slim = {"fps": ref.get("fps"), "shots": ref.get("shots") or [], "pose": ref.get("pose"),
+            "speech": (ref.get("audio") or {}).get("speech")} if ref.get("pose") else None
     return {**s, "reference": slim, "has_reference": bool(ref.get("pose") or ref.get("face") or ref.get("audio"))}
 
 
