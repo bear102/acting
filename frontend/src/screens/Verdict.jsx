@@ -49,7 +49,7 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall, 
           {hall && (
             <span className="vd-chip">
               #{hall.place} of {hall.of} in the Hall
-              {hall.rival && <> · <b>{hall.rival.gap}</b> behind {hall.rival.team_name}</>}
+              {hall.rival && <> · <b>{hall.rival.gap}</b> behind {hall.rival.own ? 'your own best' : hall.rival.team_name}</>}
             </span>
           )}
         </div>
