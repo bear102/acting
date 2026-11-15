@@ -71,6 +71,13 @@
 
 /* Your own row, and the way back to the verdict */
 .ol-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+/* the back link sits on the ship line-art: a dark pill keeps it readable */
+.link.ol-back {
+  position: relative; z-index: 1; padding: 4px 12px; border-radius: 999px;
+  background: rgba(10, 16, 32, .75); color: var(--gold-soft); box-shadow: 0 0 0 1px rgba(232, 184, 74, .35);
+  transition: background .2s, color .2s, box-shadow .2s;
+}
+.link.ol-back:hover { background: rgba(10, 16, 32, .92); color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(232, 184, 74, .3); }
 .ol-table tr.me td { background: rgba(232, 184, 74, .22); }
 .ol-table tr.me td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
 .ol-pinned td { border-top: 2px dashed rgba(232, 184, 74, .5); }

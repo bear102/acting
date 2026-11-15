@@ -44,7 +44,7 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
     <div className="panel ol">
       <PageBackdrop variant="stars" />
       <div className="ol-bar">
-        <button className="link" onClick={onBack}>{highlight ? '← Back to your verdict' : '← Back'}</button>
+        <button className="link ol-back" onClick={onBack}>{highlight ? '← Back to your verdict' : '← Back'}</button>
         {onRetry && <button className="btn" onClick={onRetry}>↻ {next ? `Chase ${next.name}` : 'Sail it again'}</button>}
       </div>
       <div className="ol-stele">
