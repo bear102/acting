@@ -1,3 +1,5 @@
+<p align="center"><img src="frontend/public/art/generated/emblem.webp" width="140" alt="Trials of Odysseus emblem"></p>
+
 # Trials of Odysseus
 
 A party acting game for HackUTA '26. Pick a scene from the *Odyssey*, choose your crew size, and
