@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { speak } from '../api.js'
+import { isMuted, loop, play, stopLoop } from '../audio/sfx.js'
 import { PLAYER_COLORS } from '../playerColors.js'
 import { GOD_ART } from '../ui/Art.jsx'
 import { Flame, MaskArt } from './setup/icons.jsx'
@@ -8,6 +9,9 @@ import { EMOTION_ICONS } from './setup/constants.js'
 import './setup/setup.css'
 
 // What the four gods score, as four icons: the idea of the game in place of a paragraph.
+// A bard's sung invocation per scene (ElevenLabs v3 TTS in a designed voice).
+const BARD = new Set(['i-am-odysseus', 'my-name-is-noman', 'bound-to-the-mast', 'secret-of-the-bed', 'beggar-in-the-hall'])
+
 const JUDGED = [['athena', 'Words'], ['apollo', 'Voice'], ['ares', 'Body'], ['aphrodite', 'Face']]
 
 function Judged() {
@@ -24,10 +28,20 @@ function Judged() {
 export default function Rehearse({ scene, team, onGo }) {
   const [reading, setReading] = useState(-1)
   const [clipTime, setClipTime] = useState(-1)
+  const [hint, setHint] = useState('')
   const stopRef = useRef(false)
   const lineRefs = useRef([])
   const clipRef = useRef(null)
-  useEffect(() => () => { stopRef.current = true; window.speechSynthesis?.cancel() }, [])
+  const voiceRef = useRef(null) // the ElevenLabs read-through / line clip currently playing
+  const voiced = scene.voiced
+  const stopVoice = () => { voiceRef.current?.pause(); voiceRef.current = null }
+  useEffect(() => () => { stopRef.current = true; window.speechSynthesis?.cancel(); stopVoice() }, [])
+
+  // A crackling hearth under the rehearsal (ElevenLabs sound effect); stops when we leave.
+  useEffect(() => {
+    loop('ambience', 'amb-hearth', { volume: 0.18 })
+    return () => stopLoop('ambience')
+  }, [])
 
   // The film starts by itself on arrival. The "Set sail" click counts as the gesture browsers
   // require for sound; if one refuses anyway, play it muted rather than not at all.
@@ -53,7 +67,39 @@ export default function Rehearse({ scene, team, onGo }) {
     if (active >= 0) lineRefs.current[active]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [active])
 
+  // Play an ElevenLabs clip; null means sound is off (muted) or blocked.
+  const playVoice = async (path, onTime) => {
+    stopVoice()
+    window.speechSynthesis?.cancel()
+    const a = await play(path, { volume: 0.9 })
+    if (!a) {
+      setHint(isMuted() ? 'Sound is off. Turn it on with the speaker button.' : '')
+      return null
+    }
+    setHint('')
+    voiceRef.current = a
+    if (onTime) a.addEventListener('timeupdate', () => onTime(a.currentTime))
+    a.addEventListener('ended', () => { if (voiceRef.current === a) { voiceRef.current = null; setReading(-1) } })
+    return a
+  }
+
+  const playLine = (i) => {
+    if (!voiced?.lines?.[i]) return
+    setReading(i)
+    playVoice(voiced.lines[i]).then((a) => { if (!a) setReading(-1) })
+  }
+
   const readThrough = async () => {
+    if (voiced?.track) {
+      // the acted scene (ElevenLabs voices); highlight lines by their timings in the track
+      setReading(0)
+      const a = await playVoice(voiced.track, (t) => {
+        const i = scene.lines.findIndex((l) => t >= l.start - 0.15 && t <= l.end + 0.45)
+        if (i >= 0) setReading(i)
+      })
+      if (!a) setReading(-1)
+      return
+    }
     stopRef.current = false
     const voices = {}
     scene.characters.forEach((c, i) => { voices[c.id] = { pitch: [0.7, 1.3, 1.0, 0.85][i % 4], rate: 0.95 } })
@@ -64,7 +110,7 @@ export default function Rehearse({ scene, team, onGo }) {
     }
     setReading(-1)
   }
-  const stopReading = () => { stopRef.current = true; window.speechSynthesis?.cancel() }
+  const stopReading = () => { stopRef.current = true; window.speechSynthesis?.cancel(); stopVoice(); setReading(-1) }
 
   return (
     <div className="panel ss-screen ss-rehearse">
@@ -76,6 +122,11 @@ export default function Rehearse({ scene, team, onGo }) {
         <div>
           <p className="eyebrow">Rehearsal at the hearth · {scene.book}</p>
           <h2>{scene.title}</h2>
+          {BARD.has(scene.id) && (
+            <button type="button" className="ss-bard" onClick={() => { setReading(-1); playVoice(`bard/${scene.id}.mp3`) }}>
+              📜 Hear the bard
+            </button>
+          )}
         </div>
         <Flame className="ss-flame" />
       </header>
@@ -120,6 +171,10 @@ export default function Rehearse({ scene, team, onGo }) {
               <div key={i} role="listitem" ref={(el) => { lineRefs.current[i] = el }}
                 className={`ss-line ${active === i ? 'on' : ''}`} style={{ '--pc': PLAYER_COLORS[p] }}>
                 <div className="ss-line-who">
+                  {voiced?.lines?.[i] && (
+                    <button type="button" className="ss-line-play" onClick={() => playLine(i)}
+                      aria-label={`Hear ${charName(l.character)}'s line`} title="Hear this line">▶</button>
+                  )}
                   <span className="ss-line-char">{charName(l.character)}</span>
                   <span className="ss-line-player">{team.players[p].name}</span>
                   {l.emotion && (
@@ -142,8 +197,9 @@ export default function Rehearse({ scene, team, onGo }) {
         ) : (
           <button className="btn ghost" onClick={stopReading}>■ Stop</button>
         )}
-        <button className="btn big ss-cta" onClick={onGo}>Take the stage →</button>
+        <button className="btn big ss-cta" onClick={() => { stopReading(); onGo() }}>Take the stage →</button>
       </div>
+      {hint && <p className="ss-sound-hint" role="status">{hint}</p>}
     </div>
   )
 }

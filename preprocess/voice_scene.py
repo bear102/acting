@@ -241,7 +241,7 @@ def main() -> None:
         for sid, text in BARD.items():
             tts(text, voices["bard"], AUDIO / "bard" / f"{sid}.mp3")
             print(f"  bard {sid}")
-    elif cmd == "names":
+    elif cmd == "names":  # not used in the app (single-word pronunciations were unreliable)
         voices = load_voices()
         for n in NAMES:
             slug = n.lower().replace("the ", "").replace(" ", "-")
