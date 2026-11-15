@@ -98,3 +98,19 @@ frontend/    React app; src/vision.js wraps MediaPipe, src/screens/Stage.jsx is 
 preprocess/  preprocess_scene.py: turns a film clip into reference data
 scenes/      scene scripts (+ gitignored media/)
 ```
+
+## Calibrating with real takes
+
+Every round is saved to `backend/data/takes/<time>_<scene>_<crew>/`, which is gitignored. Each folder holds the
+features, the mic audio, the snapshots, and the score the game showed. Set `SAVE_TAKES=0` to turn this off.
+After a test round, label what the score *should* have been, change the scoring, and replay:
+
+```powershell
+.venv\Scripts\python tools\replay_takes.py --list
+.venv\Scripts\python tools\replay_takes.py --label <part-of-take-name> "missed everything, should be low"
+.venv\Scripts\python tools\replay_takes.py --last 5          # or --scene <id>, or take folders
+.venv\Scripts\python tools\replay_takes.py --json out.json   # full old/new results
+```
+
+The replay runs each take through the real `/api/perform` pipeline (speech-to-text, judges, totals) with the current code.
+It prints the old and new kleos and each judge's old and new score side by side. Replays are not saved as new takes.
