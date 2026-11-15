@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
 } from '../vision.js'
@@ -60,6 +60,8 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     const line = scene.lines.find((l) => st >= l.start - 0.3 && st <= l.end + 0.5)
     return line ? team.assignments[line.character] : -1
   }
+  // character id -> colour of the player who plays it (stable identity so the memoized film never re-renders)
+  const guideColors = useMemo(() => Object.fromEntries(Object.entries(team.assignments).map(([c, pi]) => [c, PLAYER_COLORS[pi]])), [team.assignments])
   const charsOf = (pi) => Object.entries(team.assignments).filter(([, p]) => p === pi).map(([c]) => c)
 
   const setPhase = (p) => { live.current.phase = p; setPhaseState(p) }
@@ -702,7 +704,8 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
         <>
           <div className="sg-duo">
             <div className="sg-cell sg-cell-film">
-              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} getPark={getPark} />
+              <FilmPanel src={`/${scene.video}`} getTime={getTime} getPhase={getPhase} getPark={getPark}
+                reference={scene.reference} guideColors={guideColors} />
             </div>
             <div className="sg-cell sg-cell-cam">{camera}</div>
           </div>
