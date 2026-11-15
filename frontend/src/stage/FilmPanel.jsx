@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 
 const AUDIO_KEY = 'trials.hearFilm'
 const FILM_VOLUME = 0.25
@@ -13,11 +13,13 @@ function writePref(on) {
 // The film clip the players imitate, slaved to the stage clock:
 //   ready     -> loops silently for study (getTime returns a looping preview clock)
 //   countdown -> parked on frame 0
-//   live      -> plays from t=0, re-seeks if it drifts > 0.25s
+//   live      -> plays from t=0; small drift is absorbed by nudging playbackRate, big jumps seek
 //   sending   -> paused
 // Muted by default so the film's dialogue doesn't leak into the microphone recording.
-export default function FilmPanel({ src, getTime, getPhase }) {
+// Memoized: its props are stable, so the stage's ~10 Hz re-renders never touch the film.
+export default memo(function FilmPanel({ src, getTime, getPhase }) {
   const ref = useRef(null)
+  const lastSeek = useRef(-Infinity)
   const [hear, setHear] = useState(readPref)
 
   useEffect(() => {
@@ -38,7 +40,20 @@ export default function FilmPanel({ src, getTime, getPhase }) {
         return
       }
       const target = Math.min(Math.max(0, t), v.duration - 0.05)
-      if (Math.abs(v.currentTime - target) > 0.25) v.currentTime = target
+      const drift = v.currentTime - target
+      const now = performance.now()
+      // Seeking stalls decoding (and on a busy laptop can snowball into a seek storm), so only
+      // seek for big jumps (start, preview loop wrap, long stalls) and at most once a second;
+      // absorb small drift by nudging the playback rate instead.
+      if (Math.abs(drift) > 0.5 && (now - lastSeek.current > 1000 || phase !== 'live')) {
+        v.currentTime = target
+        lastSeek.current = now
+        v.playbackRate = 1
+      } else if (phase === 'live' && Math.abs(drift) > 0.08) {
+        v.playbackRate = drift > 0 ? 0.93 : 1.07
+      } else if (v.playbackRate !== 1) {
+        v.playbackRate = 1
+      }
       if (phase === 'countdown') {
         if (!v.paused) v.pause()
       } else if (v.paused) {
@@ -77,4 +92,4 @@ export default function FilmPanel({ src, getTime, getPhase }) {
       </div>
     </figure>
   )
-}
+})

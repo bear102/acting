@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, loadLandmarkers, poseFeature,
+  FEATURE_FPS, PLAYER_COLORS, PlayerTracker, drawSkeleton, faceFeature, poseFeature,
 } from '../vision.js'
+import { createDetector } from '../stage/detector.js'
 import { guideCharacterFor, refFrameAt, similarity } from '../stage/pose.js'
 import FilmPanel from '../stage/FilmPanel.jsx'
 import Prompter from '../stage/Prompter.jsx'
@@ -9,6 +10,7 @@ import Roster from '../stage/Roster.jsx'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
 import '../stage/stage.css'
+import '../stage/stage-perf.css'
 
 const PRAISE = ['Ares approves!', 'Athena nods.', 'Apollo smiles upon you.', 'Zeus is watching…', 'Hermes takes note.', 'The Muse sings of this!']
 const STREAK_MS = 2500
@@ -49,7 +51,14 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   }, [scene.duration])
   const getPhase = useCallback(() => live.current.phase, [])
 
-  // ---------------------------------------------------------------- camera + models + render loop
+  // ---------------------------------------------------------------- camera + detection + render loop
+  //
+  // Performance design (see frontend/scripts/bench-stage.mjs):
+  //  * MediaPipe runs in two Web Workers (pose, face) fed downscaled ImageBitmaps, so detection
+  //    never blocks rendering, the film or the teleprompter (stage/detector.js; main-thread fallback).
+  //  * Detection rate is decoupled from the render rate: a lane only gets a new frame when it's idle.
+  //  * The camera is shown as a CSS-mirrored <video>; the canvas only draws skeletons + name tags.
+  //  * React state updates are throttled to ~10 Hz and skipped when nothing changed.
   useEffect(() => {
     let raf = 0
     let stream = null
@@ -60,11 +69,16 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.streakSince = Array(nPlayers).fill(null)
     L.lastPraise = Array(nPlayers).fill(-Infinity)
     L.lastAnyPraise = -Infinity
+    L.poses = Array(nPlayers).fill(null)
+    const labels = team.players.map((pl, i) => `${pl.name} · ${charsOf(i).map(charName).join('/')}`)
+    // Pause decorative page animations (frame border, embers, torches) while on stage: stage.css
+    document.body.classList.add('stage-live')
 
     ;(async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          // Landmarks are resolution-independent: 960x540 is plenty and far cheaper than 720p+
+          video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30, max: 30 } },
           audio: { echoCancellation: true, noiseSuppression: true },
         })
         if (cancelled) return
@@ -72,10 +86,13 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         const v = videoRef.current
         v.srcObject = stream
         await v.play()
-        L.models = await loadLandmarkers(nPlayers)
-        if (cancelled) return
+        const det = await createDetector(nPlayers)
+        if (cancelled) { det.destroy(); return }
+        L.det = det
         L.tracker.setAspect(v.videoWidth / v.videoHeight)
-        stats.model = L.models.model
+        stats.model = det.model
+        stats.mode = det.mode
+        stats.delegate = det.delegate
         setPhase('ready')
         raf = requestAnimationFrame(loop)
       } catch (e) {
@@ -84,71 +101,105 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
     })()
 
-    // Debug overlay (press D): track ages, detection count, fps, detector cost. For venue testing.
+    // Debug overlay (press D): track ages, detection rates/cost, model, mode. For venue testing.
     const onKey = (e) => {
-      if ((e.key === 'd' || e.key === 'D') && !e.target.closest?.('input, textarea')) L.debug = !L.debug
+      if ((e.key === 'd' || e.key === 'D') && !e.target.closest?.('input, textarea')) { L.debug = !L.debug; L.dirty = true }
     }
     window.addEventListener('keydown', onKey)
 
     let lastVideoTime = -1
-    let frameNo = 0
     let lastUi = 0
-    let lastFrameAt = performance.now()
-    const stats = { fps: 0, poseMs: 0, faceMs: 0, skipped: 0, frames: 0, detects: 0, faceDetects: 0, detectMsTotal: 0 }
+    let lastRafAt = performance.now()
+    let lastPoseAt = -Infinity
+    let lastFaceAt = -Infinity
+    let lastPoseResultAt = performance.now()
+    let lastPoseCaptured = -Infinity
+    let shownPresent = ''
+    let shownMeters = ''
+    const stats = {
+      fps: 0, poseMs: 0, faceMs: 0, poseHz: 0, frames: 0, detects: 0, faceDetects: 0,
+      detectMsTotal: 0, mode: '', model: '', delegate: '',
+    }
     window.__stagePerf = stats // read by frontend/scripts/bench-stage.mjs (and handy in devtools)
-    // With 3+ people the face mesh is the expensive part: run it every 3rd frame (else 2nd).
-    const faceEvery = nPlayers >= 3 ? 3 : 2
+
+    // Target detection rates. Worker lanes run as fast as they can up to these; on the main
+    // thread (fallback) every detection blocks rendering, so stay well below the frame rate.
+    const rates = () => (L.det.mode === 'worker'
+      ? { pose: 30, face: nPlayers >= 3 ? 8 : 12 }
+      : { pose: 12, face: nPlayers >= 3 ? 4 : 6 })
+
     function loop() {
       const v = videoRef.current
       const canvas = canvasRef.current
-      if (!v || !canvas) return
+      if (!v || !canvas || cancelled) return
       const now = performance.now()
+      stats.fps += (1000 / Math.max(1, now - lastRafAt) - stats.fps) * 0.05
+      lastRafAt = now
       if (v.readyState >= 2 && v.currentTime !== lastVideoTime) {
         lastVideoTime = v.currentTime
-        frameNo++
         stats.frames++
-        stats.fps += (1000 / Math.max(1, now - lastFrameAt) - stats.fps) * 0.1
-        const { pose, face } = L.models
-        // If detection is running slow, only detect every other frame. The tracker holds
-        // poses between detections, and the 10 Hz sampling grid below is unaffected.
-        const slow = stats.poseMs + stats.faceMs / faceEvery > 45
-        let poses = L.poses || Array(nPlayers).fill(null)
-        if (!slow || frameNo % 2 === 0) {
-          let t0 = performance.now()
-          const pr = pose.detectForVideo(v, now)
-          poses = L.tracker.update(pr.landmarks || [], now)
-          const dPose = performance.now() - t0
-          stats.poseMs += (dPose - stats.poseMs) * 0.2
-          stats.detects++
-          stats.detectMsTotal += dPose
-          if (frameNo % faceEvery === 0 || !L.faces) {
-            t0 = performance.now()
-            const fr = face.detectForVideo(v, now)
-            L.faces = L.tracker.assignFaces(fr.faceLandmarks || [], fr.faceBlendshapes || [], now)
-            const dFace = performance.now() - t0
-            stats.faceMs += (dFace - stats.faceMs) * 0.2
-            stats.faceDetects++
-            stats.detectMsTotal += dFace
-          }
-        } else {
-          stats.skipped++
-        }
-        L.poses = poses
-        const st = getTime()
-        const dt = Math.min(0.25, (now - lastFrameAt) / 1000)
-        lastFrameAt = now
-        if (hasRef) updateMeters(poses, st, dt, now)
-        draw(canvas, v, poses)
+        schedule(v, now)
+      }
+      if (L.dirty) {
+        L.dirty = false
+        draw(canvas, v, L.poses)
         if (L.debug) drawDebug(canvas, now)
-        if (now - lastUi > 100) {
-          lastUi = now
-          setPresent(poses.map(Boolean))
-          setMeters(L.meter.map((m) => (m == null ? null : Math.round(m))))
-          if (L.recording) setT(st)
-        }
+      }
+      if (now - lastUi > 100) {
+        lastUi = now
+        pushUi()
       }
       if (L.recording) tick(now)
       raf = requestAnimationFrame(loop)
+    }
+
+    // Hand the newest camera frame to whichever detector lane is idle.
+    function schedule(v, now) {
+      const { pose, face } = L.det
+      const r = rates()
+      if (!pose.busy && now - lastPoseAt >= 1000 / r.pose) {
+        lastPoseAt = now
+        pose.submit(v, now).then((res) => { if (res && !cancelled) onPose(res, now) })
+        if (L.det.mode === 'main') return // at most one blocking detection per frame
+      }
+      if (!face.busy && now - lastFaceAt >= 1000 / r.face) {
+        lastFaceAt = now
+        face.submit(v, now).then((res) => {
+          if (!res || cancelled) return
+          L.faces = L.tracker.assignFaces(res.faces || [], res.blendshapes || [], now)
+          stats.faceMs += (res.ms - stats.faceMs) * 0.2
+          stats.faceDetects++
+          stats.detectMsTotal += res.ms
+        })
+      }
+    }
+
+    function onPose(res, capturedAt) {
+      // Pose frames are spread over several workers; never let an older frame overwrite a newer one
+      if (capturedAt <= lastPoseCaptured) return
+      lastPoseCaptured = capturedAt
+      const now = performance.now()
+      L.poses = L.tracker.update(res.landmarks || [], capturedAt)
+      stats.poseMs += (res.ms - stats.poseMs) * 0.2
+      stats.poseHz += (1000 / Math.max(1, now - lastPoseResultAt) - stats.poseHz) * 0.2
+      stats.detects++
+      stats.detectMsTotal += res.ms
+      const dt = Math.min(0.25, (now - lastPoseResultAt) / 1000)
+      lastPoseResultAt = now
+      if (hasRef) updateMeters(L.poses, getTime(), dt, now)
+      L.dirty = true
+    }
+
+    // ~10 Hz React updates, skipped when the values didn't change.
+    function pushUi() {
+      const pres = L.poses.map(Boolean)
+      const pk = pres.join()
+      if (pk !== shownPresent) { shownPresent = pk; setPresent(pres) }
+      const ms = L.meter.map((m) => (m == null ? null : Math.round(m)))
+      const mk = ms.join()
+      if (mk !== shownMeters) { shownMeters = mk; setMeters(ms) }
+      if (L.recording) setT(getTime())
+      if (L.debug) L.dirty = true
     }
 
     // Rolling (~1s) similarity between each player and their film actor at this instant.
@@ -186,38 +237,34 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       }
     }
 
+    // Overlay only: the camera itself is the <video> underneath (mirrored in CSS). The canvas
+    // keeps the camera's aspect ratio and the same object-fit as the video, so they line up.
     function draw(canvas, v, poses) {
-      const w = (canvas.width = v.videoWidth)
-      const h = (canvas.height = v.videoHeight)
+      const w = Math.min(960, v.videoWidth || 960)
+      const h = Math.round((w * (v.videoHeight || 540)) / (v.videoWidth || 960))
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h }
       const ctx = canvas.getContext('2d')
-      ctx.save(); ctx.scale(-1, 1); ctx.drawImage(v, -w, 0, w, h); ctx.restore()
-      // warm torchlit vignette
-      const g = ctx.createRadialGradient(w / 2, h * 0.45, h * 0.3, w / 2, h / 2, h * 0.95)
-      g.addColorStop(0, 'rgba(40,20,5,0)')
-      g.addColorStop(1, 'rgba(10,6,14,.6)')
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, w, h)
+      ctx.clearRect(0, 0, w, h)
       // Identity only: a faint skeleton + name tag so players know they're being tracked.
-      poses.forEach((p, i) => {
-        drawSkeleton(ctx, p, PLAYER_COLORS[i], `${team.players[i].name} · ${charsOf(i).map(charName).join('/')}`, w, h)
-      })
+      poses.forEach((p, i) => drawSkeleton(ctx, p, PLAYER_COLORS[i], labels[i], w, h))
     }
 
     function drawDebug(canvas, now) {
       const ctx = canvas.getContext('2d')
       const rows = [
-        `model ${L.models.model} · ${stats.fps.toFixed(0)} fps · pose ${stats.poseMs.toFixed(0)}ms · face ${stats.faceMs.toFixed(0)}ms/${faceEvery}f`,
-        `detections ${L.tracker.lastDetections} · players ${nPlayers} · ${L.tracker.locked ? 'LOCKED' : 'settling order'} · skipped ${stats.skipped}`,
+        `${stats.mode} · ${stats.model} · ${stats.delegate} · ui ${stats.fps.toFixed(0)} fps`,
+        `pose ${stats.poseHz.toFixed(0)}/s ${stats.poseMs.toFixed(0)}ms · face ${stats.faceMs.toFixed(0)}ms · detections ${L.tracker.lastDetections}`,
+        `players ${nPlayers} · ${L.tracker.locked ? 'LOCKED' : 'settling order'}`,
         ...L.tracker.debug(now).map((d) => `P${d.slot + 1} ${team.players[d.slot].name}: ${d.age == null ? 'never seen'
-          : d.age < 60 ? 'tracked' : d.held ? `held ${d.age}ms` : `lost ${d.age}ms`}${d.face ? ' · face' : ''}`),
+          : d.age < 120 ? 'tracked' : d.held ? `held ${d.age}ms` : `lost ${d.age}ms`}${d.face ? ' · face' : ''}`),
       ]
       ctx.save()
-      ctx.font = '600 18px ui-monospace, monospace'
+      ctx.font = '600 15px ui-monospace, monospace'
       ctx.fillStyle = 'rgba(0,0,0,.65)'
-      ctx.fillRect(8, 8, 640, rows.length * 24 + 12)
+      ctx.fillRect(6, 6, 560, rows.length * 20 + 10)
       rows.forEach((r, k) => {
-        ctx.fillStyle = k < 2 ? '#f3d58c' : PLAYER_COLORS[k - 2]
-        ctx.fillText(r, 18, 32 + k * 24)
+        ctx.fillStyle = k < 3 ? '#f3d58c' : PLAYER_COLORS[k - 3]
+        ctx.fillText(r, 14, 26 + k * 20)
       })
       ctx.restore()
     }
@@ -256,9 +303,11 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       cancelled = true
       cancelAnimationFrame(raf)
       window.removeEventListener('keydown', onKey)
+      document.body.classList.remove('stage-live')
       L.recording = false
       try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
       try { L.speech?.abort() } catch { /* not running */ }
+      L.det?.destroy()
       stream?.getTracks().forEach((tr) => tr.stop())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -366,8 +415,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   const camera = (
     <div className="sg-frame">
-      <video ref={videoRef} className="sg-hidden-video" playsInline muted />
-      <canvas ref={canvasRef} className="sg-canvas" />
+      <video ref={videoRef} className="sg-canvas sg-cam-video" playsInline muted />
+      <div className="sg-cam-vignette" />
+      <canvas ref={canvasRef} className="sg-canvas sg-cam-overlay" />
       {hasFilm && <div className="sg-frame-label">You</div>}
 
       {phase === 'loading' && !error && <div className="sg-overlay"><div className="sg-spinner" />Summoning the all-seeing eye…</div>}
@@ -467,7 +517,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   )
 }
 
-function Plaque({ i, name, roles, present, meter, hasRef }) {
+const Plaque = memo(function Plaque({ i, name, roles, present, meter, hasRef }) {
   const pct = meter ?? 0
   const label = !present ? 'Step into the light' : !hasRef ? 'In frame' : meter == null ? 'Watching the film…' : favorWord(pct)
   return (
@@ -490,7 +540,7 @@ function Plaque({ i, name, roles, present, meter, hasRef }) {
       <div className="sg-plaque-label">{label}</div>
     </div>
   )
-}
+})
 
 function favorWord(p) {
   if (p >= 80) return 'Godlike'

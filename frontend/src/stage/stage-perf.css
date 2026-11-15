@@ -1,0 +1,9 @@
+/* Live camera as a real <video> (GPU-composited, mirrored in CSS) with a transparent overlay
+   canvas for skeletons/name tags on top. All three layers share .sg-canvas sizing (100% box,
+   object-fit: cover), so the overlay lines up with the picture exactly. */
+.sg-cam-video { position: absolute; inset: 0; transform: scaleX(-1); background: #000; }
+.sg-cam-overlay { position: absolute; inset: 0; pointer-events: none; }
+.sg-cam-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, rgba(40, 20, 5, 0) 45%, rgba(10, 6, 14, .6) 100%);
+}

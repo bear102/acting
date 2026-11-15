@@ -89,6 +89,15 @@ try {
     r.fulfill({ json: { ...s, reference: ref ? { fps: ref.fps, shots: ref.shots, pose: ref.pose } : null, has_reference: !!ref } })
   })
   await page.route('**/api/leaderboard**', (r) => r.fulfill({ json: [] }))
+  // --verify: capture the submitted take and check the payload the backend would score
+  let submitted = null
+  await page.route('**/api/perform', (r) => {
+    const body = r.request().postDataBuffer()?.toString('latin1') || ''
+    const m = body.match(/name="meta"\r\n\r\n([\s\S]*?)\r\n--/)
+    submitted = { meta: m ? JSON.parse(m[1]) : null, frames: (body.match(/name="frames"/g) || []).length,
+      audioBytes: (body.split('name="audio"')[1] || '').length }
+    r.fulfill({ status: 500, body: 'bench' })
+  })
   await page.route('**/media/**', (r) => {
     const f = path.join(scenesDir, 'media', decodeURIComponent(new URL(r.request().url()).pathname.split('/media/')[1]))
     return fs.existsSync(f) ? r.fulfill({ path: f, contentType: 'video/mp4' }) : r.fulfill({ status: 404 })
@@ -138,7 +147,7 @@ try {
     if (!s) throw new Error('window.__stagePerf missing: is this the right build?')
     return {
       now: performance.now(), ...window.__bench, frames: s.frames ?? 0, detects: s.detects ?? 0,
-      faceDetects: s.faceDetects ?? 0, detectMsTotal: s.detectMsTotal ?? 0, model: s.model,
+      poseMs: s.poseMs, faceMs: s.faceMs, faceDetects: s.faceDetects ?? 0, detectMsTotal: s.detectMsTotal ?? 0, model: s.model, mode: s.mode, delegate: s.delegate,
       filmDropped: q?.droppedVideoFrames ?? 0, filmTotal: q?.totalVideoFrames ?? 0, filmSeeks: film?.__seeks ?? 0,
     }
   })
@@ -159,11 +168,32 @@ try {
     longTasks: d('longCount'), longTaskMs: +d('longMs').toFixed(0),
     mainBusyPct: +(100 * (mb.TaskDuration - ma.TaskDuration) / secs).toFixed(0),
     filmDropped: d('filmDropped'), filmFrames: d('filmTotal'), filmSeeks: d('filmSeeks'),
-    model: b.model || '',
+    poseMsAvg: +(b.poseMs ?? 0).toFixed(0), faceMsAvg: +(b.faceMs ?? 0).toFixed(0),
+    model: b.model || '', mode: b.mode || 'main', delegate: b.delegate || '',
   }
   if (args.verbose) console.log(JSON.stringify({ a, b }))
   console.log(JSON.stringify(result))
   if (args.screenshot) await page.screenshot({ path: args.screenshot })
+  if (args.verify) {
+    // Let the take run to the end and check what would be sent for scoring
+    const deadline = Date.now() + (sceneMeta.duration + 20) * 1000
+    while (!submitted && Date.now() < deadline) await page.waitForTimeout(500)
+    if (!submitted?.meta) throw new Error('take was never submitted')
+    const m = submitted.meta
+    const expected = Math.floor(m.duration * m.features.fps)
+    const per = m.features.players.map((p, i) => ({
+      player: i + 1, samples: p.pose.length,
+      pose: `${Math.round(100 * p.pose.filter(Boolean).length / p.pose.length)}%`,
+      face: `${Math.round(100 * p.face.filter(Boolean).length / p.face.length)}%`,
+      poseLen: p.pose.find(Boolean)?.length ?? 0, faceLen: p.face.find(Boolean)?.length ?? 0,
+    }))
+    const ok = per.every((p) => Math.abs(p.samples - expected) <= 2 && (p.poseLen === 0 || p.poseLen === 21) &&
+      (p.faceLen === 0 || p.faceLen === 21)) && m.snapshot_times.length === submitted.frames && submitted.audioBytes > 1000
+    console.log(JSON.stringify({ verify: ok ? 'OK' : 'FAIL', duration: +m.duration.toFixed(2), expectedSamples: expected,
+      players: per, snapshots: m.snapshot_times, frames: submitted.frames, audioBytes: submitted.audioBytes,
+      transcriptSegments: m.browser_transcript.length }))
+    if (!ok) process.exitCode = 1
+  }
   await browser.close()
 } finally {
   cleanup()

@@ -22,9 +22,13 @@ let task = null
 let kind = null
 let lastTs = 0
 
-async function create(Task, fileset, options) {
+async function create(Task, fileset, options, prefer) {
   // OffscreenCanvas lets the GPU delegate work inside a worker
   const canvas = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(1, 1) : undefined
+  if (prefer === 'CPU') {
+    const t = await Task.createFromOptions(fileset, { ...options, baseOptions: { ...options.baseOptions, delegate: 'CPU' } })
+    return { t, delegate: 'CPU' }
+  }
   try {
     const t = await Task.createFromOptions(fileset, { ...options, canvas, baseOptions: { ...options.baseOptions, delegate: 'GPU' } })
     return { t, delegate: 'GPU' }
@@ -35,7 +39,9 @@ async function create(Task, fileset, options) {
   }
 }
 
-async function init({ kind: k, num, model }) {
+let prefer = null
+async function init({ kind: k, num, model, delegate: wanted }) {
+  prefer = wanted || null
   kind = k
   const fileset = await FilesetResolver.forVisionTasks(new URL('/mediapipe/wasm', self.location.origin).href, true)
   if (kind === 'pose') {
@@ -49,7 +55,7 @@ async function init({ kind: k, num, model }) {
           minPoseDetectionConfidence: CONFIDENCE.detection,
           minPosePresenceConfidence: CONFIDENCE.presence,
           minTrackingConfidence: CONFIDENCE.tracking,
-        })
+        }, prefer)
         task = t
         return { model: m, delegate }
       } catch (e) { lastErr = e }
@@ -62,9 +68,20 @@ async function init({ kind: k, num, model }) {
     minFaceDetectionConfidence: CONFIDENCE.detection,
     minFacePresenceConfidence: CONFIDENCE.presence,
     minTrackingConfidence: CONFIDENCE.tracking,
-  })
+  }, prefer)
   task = t
   return { model: 'face_landmarker', delegate }
+}
+
+let cpuInput = false
+let scratch = null
+function toImageData(bitmap) {
+  const { width: w, height: h } = bitmap
+  if (!scratch || scratch.canvas.width !== w || scratch.canvas.height !== h) {
+    scratch = new OffscreenCanvas(w, h).getContext('2d', { willReadFrequently: true })
+  }
+  scratch.drawImage(bitmap, 0, 0)
+  return scratch.getImageData(0, 0, w, h)
 }
 
 function detect(bitmap, ts) {
@@ -73,12 +90,15 @@ function detect(bitmap, ts) {
   lastTs = t
   const t0 = performance.now()
   try {
+    // CPU delegate: hand MediaPipe raw pixels. Given an ImageBitmap it converts through WebGL and
+    // reads back, which on an integrated GPU busy with the film costs far more than the model.
+    const input = cpuInput ? toImageData(bitmap) : bitmap
     if (kind === 'pose') {
-      const r = task.detectForVideo(bitmap, t)
+      const r = task.detectForVideo(input, t)
       const landmarks = (r.landmarks || []).map((lm) => lm.map((p) => ({ x: p.x, y: p.y, visibility: p.visibility })))
       return { landmarks, ms: performance.now() - t0 }
     }
-    const r = task.detectForVideo(bitmap, t)
+    const r = task.detectForVideo(input, t)
     // The tracker only needs the nose tip (index 1) to match faces to bodies
     const faces = (r.faceLandmarks || []).map((f) => [null, { x: f[1].x, y: f[1].y }])
     const blendshapes = (r.faceBlendshapes || []).map((b) => ({
@@ -95,6 +115,7 @@ self.onmessage = async (e) => {
   try {
     if (msg.type === 'init') {
       const info = await init(msg)
+      cpuInput = info.delegate === 'CPU' && !msg.bitmapInput
       self.postMessage({ type: 'ready', ...info })
     } else if (msg.type === 'detect') {
       const out = detect(msg.bitmap, msg.ts)

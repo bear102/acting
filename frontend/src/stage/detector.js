@@ -19,7 +19,29 @@ export function stageOptions() {
   return {
     lite: q.get('lite') === '1' || q.get('pose') === 'lite',
     mode: q.get('detect') === 'main' ? 'main' : 'worker',
+    // Measured on an Intel UHD laptop: the GPU delegate inside workers fights the film's video
+    // decode and the compositor for the iGPU (dropped film frames, stalls), so workers default to
+    // the CPU (XNNPACK) delegate. ?delegate=gpu tries the GPU first.
+    delegate: q.get('delegate') === 'gpu' ? 'GPU' : 'CPU',
+    // MediaPipe's CPU WASM is single-threaded: round-robin pose frames over 2 workers when the
+    // machine has the cores (roughly doubles pose detections/s). ?poseWorkers=N overrides.
+    bitmapInput: q.get('input') === 'bitmap', // A/B knob for the ImageData path in the worker
+    poseWorkers: Math.max(1, Math.min(3, +(q.get('poseWorkers') ||
+      ((navigator.hardwareConcurrency || 4) >= 8 ? 2 : 1)))),
   }
+}
+
+// Several identical pose workers used round-robin. Results can come back out of order, so each
+// result carries the capture time and the caller drops stale ones.
+class PoolLane {
+  constructor(lanes) { this.lanes = lanes }
+  get busy() { return this.lanes.every((l) => l.busy) }
+  get avgMs() { return this.lanes.reduce((a, l) => a + l.avgMs, 0) / this.lanes.length }
+  get count() { return this.lanes.reduce((a, l) => a + l.count, 0) }
+  get msTotal() { return this.lanes.reduce((a, l) => a + l.msTotal, 0) }
+  submit(video, ts) { return this.lanes.find((l) => !l.busy)?.submit(video, ts) ?? Promise.resolve(null) }
+  setNum(num) { this.lanes.forEach((l) => l.setNum(num)) }
+  destroy() { this.lanes.forEach((l) => l.destroy()) }
 }
 
 function detectSize(video) {
@@ -39,7 +61,7 @@ class WorkerLane {
     this.pending = null
   }
 
-  init(num, model) {
+  init(num, model, delegate) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error(`${this.kind} worker init timed out`)), INIT_TIMEOUT_MS)
       this.worker.onmessage = (e) => {
@@ -48,7 +70,7 @@ class WorkerLane {
         else if (m.type === 'error') { clearTimeout(timer); reject(new Error(m.error)) }
       }
       this.worker.onerror = (e) => { clearTimeout(timer); reject(e.error || new Error(e.message || 'worker error')) }
-      this.worker.postMessage({ type: 'init', kind: this.kind, num, model })
+      this.worker.postMessage({ type: 'init', kind: this.kind, num, model, delegate, bitmapInput: stageOptions().bitmapInput })
     })
   }
 
@@ -130,12 +152,18 @@ export async function createDetector(players) {
   const canWorker = opts.mode === 'worker' && typeof Worker !== 'undefined' &&
     typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap !== 'undefined'
   if (canWorker) {
-    const pose = new WorkerLane('pose')
+    const poseLanes = Array.from({ length: opts.poseWorkers }, () => new WorkerLane('pose'))
+    const pose = new PoolLane(poseLanes)
     const face = new WorkerLane('face')
     try {
-      const [pi, fi] = await Promise.all([pose.init(num, opts.lite ? 'lite' : 'full'), face.init(num)])
+      const infos = await Promise.all([
+        ...poseLanes.map((l) => l.init(num, opts.lite ? 'lite' : 'full', opts.delegate)),
+        face.init(num, undefined, opts.delegate),
+      ])
+      const pi = infos[0]
+      const fi = infos[infos.length - 1]
       return {
-        mode: 'worker', model: pi.model, delegate: `${pi.delegate}/${fi.delegate}`, pose, face,
+        mode: 'worker', model: pi.model, delegate: `${pi.delegate}x${poseLanes.length}/${fi.delegate}`, pose, face,
         destroy() { pose.destroy(); face.destroy() },
       }
     } catch (e) {
