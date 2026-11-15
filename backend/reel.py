@@ -10,6 +10,8 @@ Nothing here changes the score. It reshapes what the four judges already measure
 """
 from __future__ import annotations
 
+from itertools import product
+
 from scoring import RANKS, WEIGHTS
 
 DOMAINS = {"words": "athena", "voice": "apollo", "body": "ares", "face": "aphrodite"}
@@ -86,7 +88,9 @@ def crew(bs: list[dict], judges: dict, stars: list[dict]) -> list[dict]:
     """One epithet per player, from their strongest domain, and no two players share one if avoidable.
 
     Players claim epithets strongest-first: each takes their highest domain (>= 35) still free.
-    If every qualifying domain is already taken they keep their top one; FAINT_EPITHET may repeat."""
+    If that greedy pass still leaves two players sharing one, every assignment is tried (at most 4
+    players x 4 domains) and the one with the fewest shared epithets, then the highest total score,
+    wins. FAINT_EPITHET (nothing reaches 35) may repeat."""
     all_doms = []
     for pi, star in enumerate(stars):
         mine = [b for b in bs if b["player"] == pi]
@@ -111,6 +115,16 @@ def crew(bs: list[dict], judges: dict, stars: list[dict]) -> list[dict]:
         free = [d for d in ranked[pi] if d not in taken]
         best[pi] = free[0] if free else ranked[pi][0]
         taken.add(best[pi])
+
+    chosen = [b for b in best if b]
+    if len(chosen) != len(set(chosen)):  # greedy left a duplicate: look for an assignment without one
+        who = [i for i in range(len(stars)) if ranked[i]]
+        def cost(pick):
+            return (len(pick) - len(set(pick)), -sum(all_doms[i][d] for i, d in zip(who, pick)))
+        pick = min(product(*(ranked[i] for i in who)), key=cost)
+        if cost(pick) < cost(tuple(best[i] for i in who)):
+            for i, d in zip(who, pick):
+                best[i] = d
 
     return [{**star, "epithet": EPITHETS[best[pi]] if best[pi] else FAINT_EPITHET, "best": best[pi],
              "domains": {k: round(v) for k, v in all_doms[pi].items()}}

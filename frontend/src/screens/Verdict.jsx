@@ -18,7 +18,7 @@ const STT_NAMES = { elevenlabs: 'ElevenLabs Scribe', whisper: 'Whisper', browser
 // A god's zinger in “ ”, without doubling quotes the model already wrote: strip one full wrapping pair
 // (only when nothing inside is quoted), and skip our own marks when the line opens on a quote anyway.
 function quoted(text) {
-  const z = text.trim().replace(/^["“](.*)["”]$/s, (m, inner) => (/["“”]/.test(inner) ? m : inner))
+  const z = String(text ?? '').trim().replace(/^["“](.*)["”]$/s, (m, inner) => (/["“”]/.test(inner) ? m : inner))
   return /^["“]/.test(z) ? z : `“${z}”`
 }
 
