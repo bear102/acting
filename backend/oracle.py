@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import random
+import re
 
 import httpx
 
@@ -32,26 +33,50 @@ def status() -> dict:
 
 # --------------------------------------------------------------------------- ElevenLabs STT
 
-async def transcribe(audio: bytes, filename: str) -> list[dict] | None:
-    """Return [{"text", "start", "end"}] word list, or None if unavailable."""
+_EVENT_RE = re.compile(r"^\s*[\[(][^\])]*[\])]\s*$")
+
+
+async def transcribe(audio: bytes, filename: str, keyterms: list[str] | None = None) -> list[dict] | None:
+    """Return [{"text", "start", "end"}] word list, or None if unavailable.
+
+    Uses Scribe v2 (ELEVENLABS_STT_MODEL, default scribe_v2) biased toward the scene's script via
+    `keyterms` (sent as repeated form fields — a JSON string is rejected). On a 4xx from v2 it
+    retries once with scribe_v1 and no keyterms. Audio-event tags like "[laughter]" are dropped.
+    """
     key = _el_key()
     if not key or not audio:
         return None
+    model = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
+    attempts = [(model, keyterms or [])]
+    if model != "scribe_v1":
+        attempts.append(("scribe_v1", []))
     try:
         async with httpx.AsyncClient(timeout=60) as client:
-            r = await client.post(
-                f"{EL_BASE}/speech-to-text",
-                headers={"xi-api-key": key},
-                data={"model_id": os.getenv("ELEVENLABS_STT_MODEL", "scribe_v1"),
-                      "language_code": "en", "tag_audio_events": "false"},
-                files={"file": (filename, audio, "audio/webm")},
-            )
-            r.raise_for_status()
-            data = r.json()
+            data = None
+            for i, (mid, terms) in enumerate(attempts):
+                # a list value is sent as repeated multipart fields (keyterms=a, keyterms=b, ...)
+                form = {"model_id": mid, "language_code": "en", "tag_audio_events": "false"}
+                if terms:
+                    form["keyterms"] = list(terms)
+                r = await client.post(
+                    f"{EL_BASE}/speech-to-text",
+                    headers={"xi-api-key": key},
+                    data=form,
+                    files={"file": (filename, audio, "audio/webm")},
+                )
+                if 400 <= r.status_code < 500 and i + 1 < len(attempts):
+                    log.warning("Scribe %s rejected (%s): %s; retrying with %s",
+                                mid, r.status_code, r.text[:160], attempts[i + 1][0])
+                    continue
+                r.raise_for_status()
+                data = r.json()
+                break
         out = [{"text": w["text"], "start": w.get("start"), "end": w.get("end")}
-               for w in data.get("words", []) if w.get("type", "word") == "word"]
+               for w in data.get("words", []) if w.get("type", "word") == "word"
+               and not _EVENT_RE.match(w.get("text", ""))]
         if not out and data.get("text"):
-            out = [{"text": t, "start": None, "end": None} for t in data["text"].split()]
+            out = [{"text": t, "start": None, "end": None} for t in data["text"].split()
+                   if not _EVENT_RE.match(t)]
         return out
     except Exception as e:  # noqa: BLE001
         log.warning("ElevenLabs STT failed: %s", e)

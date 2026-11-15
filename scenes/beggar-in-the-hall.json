@@ -30,40 +30,40 @@
    "text": "All of us who failed your test.",
    "emotion": "cunning",
    "direction": "Sneer at the queen. Sweep a hand across the crowd of suitors.",
-   "start": 1.66,
-   "end": 3.96
+   "start": 2.22,
+   "end": 4.1
   },
   {
    "character": "odysseus",
    "text": "I haven't.",
    "emotion": "resolve",
    "direction": "Quiet and steady. The whole hall turns to look at you.",
-   "start": 5.0,
-   "end": 6.0
+   "start": 4.98,
+   "end": 5.44
   },
   {
    "character": "antinous",
    "text": "Did somebody get these beggars out of here?",
    "emotion": "joy",
    "direction": "Turn to the crowd, laughing. Wave the beggar off.",
-   "start": 9.8,
-   "end": 12.54
+   "start": 10.96,
+   "end": 12.6
   },
   {
    "character": "penelope",
    "text": "The door's unlocked until the trial's over.",
    "emotion": "resolve",
    "direction": "Cold authority. Never raise your voice.",
-   "start": 13.6,
-   "end": 16.12
+   "start": 13.82,
+   "end": 15.76
   },
   {
    "character": "antinous",
    "text": "The trial is over.",
    "emotion": "rage",
    "direction": "Snap back. The smile is gone.",
-   "start": 16.52,
-   "end": 18.0
+   "start": 16.54,
+   "end": 18.04
   }
  ],
  "source": "The Odyssey (2026 film) clip; transcribed with Whisper, speakers assigned by shot",

@@ -10,6 +10,7 @@ import Roster from '../stage/Roster.jsx'
 import { HOLD_MS, readHoldsPref, shotHolds, writeHoldsPref } from '../stage/holds.js'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
+import { play, setRecording } from '../audio/sfx.js'
 import '../stage/stage.css'
 import '../stage/stage-perf.css'
 
@@ -357,6 +358,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       cancelAnimationFrame(raf)
       window.removeEventListener('keydown', onKey)
       document.body.classList.remove('stage-live')
+      L.unmounted = true
+      clearInterval(L.countdownIv) // leaving during the countdown must not start a take afterwards
       L.recording = false
       // 'paused' too: the stage can be left in the middle of a shot-change hold
       try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
@@ -371,20 +374,25 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   // ---------------------------------------------------------------- take control
   const begin = () => {
+    const L = live.current
+    if (L.countdownIv || L.recording) return // double-click on "Action!" must not start two takes
+    play('gong', { allowOnStage: true })
     setPhase('countdown')
     let n = 3
     setCount(n)
-    const iv = setInterval(() => {
+    L.countdownIv = setInterval(() => {
       n--
       setCount(n)
       if (n === 0) {
-        clearInterval(iv)
-        startRecording()
+        clearInterval(L.countdownIv)
+        L.countdownIv = null
+        if (!L.unmounted) startRecording()
       }
     }, 900)
   }
 
   function startRecording() {
+    setRecording(true) // silence everything before the mic starts (no sound may bleed into the take)
     const L = live.current
     L.features = Array.from({ length: nPlayers }, () => ({ pose: [], face: [] }))
     L.nextSample = 0
@@ -471,6 +479,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       stopRec(L.videoRecorder, L.videoChunks, 'video/webm'),
     ])
     const video = recorded && recorded.size > 1000 ? recorded : null
+    setRecording(false)
+    play('cut', { allowOnStage: true })
     if (L.snaps.length === 0) L.snapshot(L.lastT)
     // Keep frames and their times paired even if a toBlob() failed
     const blobs = await Promise.all(L.snaps)

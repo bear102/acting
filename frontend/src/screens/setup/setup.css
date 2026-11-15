@@ -148,3 +148,17 @@
 @media (min-width: 901px) and (max-height: 820px) {
   .ss-rehearse-grid .ss-judged { display: none; }
 }
+
+/* ElevenLabs voiced lines: a small play button per script line */
+.ss-line-play {
+  width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1px solid var(--pc, var(--gold));
+  background: transparent; color: var(--pc, var(--gold)); font-size: .62rem; line-height: 1; cursor: pointer;
+  display: inline-grid; place-items: center; padding: 0 0 0 2px;
+}
+.ss-line-play:hover, .ss-line-play:focus-visible { background: var(--pc, var(--gold)); color: var(--ss-papyrus); }
+.ss-sound-hint { text-align: center; margin: 6px 0 0; font-size: .85rem; color: var(--gold-soft); }
+.ss-bard {
+  margin-top: 4px; padding: 3px 12px; border-radius: 999px; border: 1px solid rgba(232, 184, 74, .45);
+  background: rgba(10, 8, 16, .5); color: var(--gold-soft); font: 600 .78rem 'Cinzel', serif; letter-spacing: .08em; cursor: pointer;
+}
+.ss-bard:hover, .ss-bard:focus-visible { border-color: var(--gold); color: var(--gold); }

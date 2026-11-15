@@ -1,3 +1,4 @@
+import { play } from '../audio/sfx.js'
 import PageBackdrop from '../ui/PageBackdrop.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../playerColors.js'
@@ -13,6 +14,14 @@ const GODS = [
   { key: 'aphrodite', name: 'Aphrodite', domain: 'Emotion' },
 ]
 const RING = 2 * Math.PI * 34
+const RANK_SOUND = {
+  'Swine of Circe': { sfx: 'rank-swine', tier: 'low' },
+  'Lotus-Eater': { sfx: 'rank-lotus', tier: 'low' },
+  'Oarsman of Ithaca': { sfx: 'rank-oarsman', tier: 'mid' },
+  'Hero of Troy': { sfx: 'rank-hero', tier: 'mid' },
+  'Favored of Athena': { sfx: 'rank-favored', tier: 'high' },
+  'Equal to the Gods': { sfx: 'rank-gods', tier: 'high' },
+}
 const STT_NAMES = { elevenlabs: 'ElevenLabs Scribe', whisper: 'Whisper', browser: 'browser speech recognition' }
 
 // Verdict = where you landed (voyage) -> how each line went (reel) -> the four gods -> laurels.
@@ -25,6 +34,15 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall, 
 
   useEffect(() => { record(result) }, [result])
   const onArrive = useCallback(() => setArrived(true), [])
+  // When the ship lands on the rank: a fanfare for the tier and the crowd's reaction to the rank
+  useEffect(() => {
+    if (!arrived) return
+    const r = RANK_SOUND[result.rank]
+    if (!r) return
+    play(`fanfare-${r.tier}`, { volume: 0.35 })
+    const t = setTimeout(() => play(r.sfx), 350)
+    return () => clearTimeout(t)
+  }, [arrived, result.rank])
 
   const delta = past.last == null ? null : result.kleos - past.last
   const isBest = past.best != null && result.kleos > past.best
