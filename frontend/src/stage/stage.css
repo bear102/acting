@@ -110,18 +110,14 @@
   position: absolute; left: 0; right: 0; bottom: 6px; padding: 28px 36px 18px; text-align: center;
   background: linear-gradient(0deg, rgba(8, 10, 22, .94) 35%, rgba(8, 10, 22, 0));
 }
-.sg-line .sg-speaker {
-  display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap;
-  font: 700 1rem 'Cinzel', serif; letter-spacing: .04em;
-}
-.sg-emo { font-size: 1.15rem; }
-.sg-player { font-weight: 500; opacity: .85; }
-.sg-words { color: rgba(244, 236, 220, .45); font-size: 1.25rem; }
-.sg-line.big .sg-words { font-size: clamp(1.25rem, 2.4vw, 2.05rem); line-height: 1.25; margin-top: 4px; }
-.sg-line.big .sg-words span { transition: color .15s, text-shadow .15s; }
-.sg-line.big .sg-words .lit { color: var(--marble); text-shadow: 0 0 18px rgba(232, 184, 74, .55); }
+/* The text area is colour-coded: it takes the colour of the player whose line it is (--pc). */
+.sg-prompter { border-top: 5px solid var(--pc, transparent); transition: border-color .2s, background-color .2s; }
+.sg-words { color: rgba(244, 236, 220, .5); font-size: 1.6rem; font-weight: 600; line-height: 1.16; }
+.sg-words span { transition: color .15s, text-shadow .15s; }
+.sg-words .lit { color: #fff; text-shadow: 0 0 16px var(--pc), 0 2px 2px #000; }
+/* the upcoming line: whole, in its speaker's colour, a touch dimmer than a live one */
+.sg-prompter.soon .sg-words { color: color-mix(in srgb, var(--pc) 70%, #f4ecdc); opacity: .8; }
 .sg-cue { color: var(--muted); }
-.sg-cue-label { display: block; font: 600 .7rem 'Cinzel', serif; letter-spacing: .3em; text-transform: uppercase; color: var(--terracotta); }
 .sg-upnext {
   display: inline-flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 2px 14px 2px 4px;
   border-radius: 999px; background: rgba(10, 16, 32, .75); font: 600 .9rem 'Cinzel', serif;
@@ -193,8 +189,12 @@
   border-radius: 12px; border: 1px solid rgba(232, 184, 74, .25);
   background: linear-gradient(180deg, rgba(58, 20, 38, .45), rgba(10, 16, 32, .75));
 }
-.sg-band .sg-prompter { position: static; width: 100%; background: none; padding: 14px 24px; }
+.sg-band .sg-prompter { position: static; width: 100%; padding: 14px 24px; background: color-mix(in srgb, var(--pc, transparent) 26%, transparent); }
 .sg-band-idle { opacity: .5; text-align: center; }
+/* the colour fills the whole band, edge to edge, with the words centred in it */
+.sg-band { display: flex; align-items: stretch; overflow: hidden; }
+.sg-band-idle { flex: 1; display: flex; }
+.sg-band .sg-prompter { flex: 1; display: flex; align-items: center; justify-content: center; }
 
 /* ---------- roster (scenes without a film) */
 .sg-roster {
@@ -246,14 +246,9 @@
 }
 .sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
 .sg-band .sg-upnext { position: absolute; top: 8px; left: 12px; margin: 0; font-size: clamp(1rem, 2.4vh, 1.35rem); }
-/* Read from 2-3 m back, mid-gesture: who speaks and the words, nothing else, as big as fits */
-.sg-line .sg-speaker { font-size: clamp(1.15rem, 3vh, 1.7rem); }
-.sg-emo { font-size: 1.2em; }
-.sg-words { font-size: clamp(1.35rem, 3.8vh, 2.1rem); color: rgba(244, 236, 220, .62); }
-.sg-line.big .sg-words { font-size: clamp(1.9rem, 6.4vh, 3.7rem); line-height: 1.18; font-weight: 600; color: rgba(244, 236, 220, .5); }
-.sg-line.big .sg-words .lit { color: #fff8e8; text-shadow: 0 0 14px rgba(232, 184, 74, .7), 0 2px 2px #000; }
+/* Read from 2-3 m back: the words fill the band */
+.sg-words { font-size: clamp(2.3rem, 8.4vh, 5rem); }
 .sg-cue { font-size: clamp(1.2rem, 3vh, 1.7rem); }
-.sg-cue-label { font-size: clamp(.8rem, 1.9vh, 1.05rem); }
 /* without a film the prompter overlays the camera: keep it big too */
 .sg-frame .sg-prompter { padding: clamp(10px, 2vh, 24px) clamp(14px, 2vw, 32px) clamp(10px, 1.6vh, 18px); }
 
