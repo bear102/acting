@@ -51,7 +51,12 @@ export default memo(function FilmPanel({ src, getTime, getPhase }) {
       // Seeking stalls decoding (and on a busy laptop can snowball into a seek storm), so only
       // seek for big jumps (start, preview loop wrap, long stalls) and at most once a second;
       // absorb small drift by nudging the playback rate instead.
-      if (Math.abs(drift) > 0.5 && (now - lastSeek.current > 1000 || phase !== 'live')) {
+      if (phase === 'hold') {
+        // Parked at a shot change: show exactly the frame the players should match. The target
+        // doesn't move during a hold, so this seeks once.
+        if (Math.abs(drift) > 0.03 && !v.seeking) { v.currentTime = target; lastSeek.current = now }
+        v.playbackRate = 1
+      } else if (Math.abs(drift) > 0.5 && (now - lastSeek.current > 1000 || phase !== 'live')) {
         v.currentTime = target
         lastSeek.current = now
         v.playbackRate = 1

@@ -308,11 +308,20 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
     // Shot change: freeze the take (film, clock, recordings) so players can reposition.
     function startHold(h, now) {
+      // Pause both recordings first: if either can't pause, skip this hold rather than let the
+      // recording and the clock drift apart.
+      const paused = []
+      try {
+        for (const r of [L.recorder, L.videoRecorder]) {
+          if (r?.state === 'recording') { r.pause(); paused.push(r) }
+        }
+      } catch (e) {
+        console.warn('Recorder could not pause; skipping this hold', e)
+        paused.forEach((r) => { try { r.resume() } catch { /* already running */ } })
+        return
+      }
       L.hold = { ...h, since: now, until: now + HOLD_MS }
       L.phase = 'hold' // the film panel parks on the new shot; React's phase stays 'live'
-      for (const r of [L.recorder, L.videoRecorder]) {
-        try { if (r?.state === 'recording') r.pause() } catch { /* keep recording */ }
-      }
       L.dirty = true
     }
 
@@ -346,8 +355,9 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       window.removeEventListener('keydown', onKey)
       document.body.classList.remove('stage-live')
       L.recording = false
-      try { if (L.recorder?.state === 'recording') L.recorder.stop() } catch { /* already stopped */ }
-      try { if (L.videoRecorder?.state === 'recording') L.videoRecorder.stop() } catch { /* already stopped */ }
+      // 'paused' too: the stage can be left in the middle of a shot-change hold
+      try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
+      try { if (L.videoRecorder && L.videoRecorder.state !== 'inactive') L.videoRecorder.stop() } catch { /* already stopped */ }
       L.videoTrack?.stop()
       try { L.speech?.abort() } catch { /* not running */ }
       L.det?.destroy()
@@ -385,7 +395,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     L.pausedMs = 0
     L.hold = null
     L.holdIdx = 0
-    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration, nPlayers)
+    L.holds = shotHolds(scene.reference?.shots, team.assignments, scene.duration, nPlayers, scene.lines)
 
     const audioStream = new MediaStream(L.stream.getAudioTracks())
     const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((m) => MediaRecorder.isTypeSupported(m))
@@ -418,7 +428,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       rec.lang = 'en-US'
       rec.onresult = (e) => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
+          // side talk during a shot-change hold ("step out!") is not part of the scene
+          if (e.results[i].isFinal && !L.hold) {
             L.transcript.push({ text: e.results[i][0].transcript.trim(), t: sceneTime(performance.now()) })
           }
         }
@@ -525,10 +536,10 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       {phase === 'countdown' && <div className="sg-overlay sg-countdown" key={count}>{count || 'Action!'}</div>}
       {isLive && hold && (
         // Shot change: the player now on screen lights up, everyone else steps out
-        <div className="sg-overlay soft sg-hold" role="status"
-          aria-label={`${team.players[hold.player].name} as ${charName(hold.character)}; everyone else step out of frame`}>
-          <div className="sg-hold-count" key={hold.left}>{hold.left}</div>
-          <div className="sg-places">
+        <div className="sg-overlay soft sg-hold">
+          <p className="sg-sr" role="status">{`${team.players[hold.player].name} as ${charName(hold.character)}. Everyone else, step out of frame.`}</p>
+          <div className="sg-hold-count" key={hold.left} aria-hidden="true">{hold.left}</div>
+          <div className="sg-places" aria-hidden="true">
             {team.players.map((p, i) => (
               <div key={i} className={`sg-place ${i === hold.player ? 'here' : 'away'}`} style={{ '--pc': PLAYER_COLORS[i] }}>
                 <span className="sg-place-disc">{i + 1}</span>
