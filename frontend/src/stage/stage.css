@@ -1,6 +1,6 @@
 /* ============================================================ Live stage
-   Torchlit hall: camera in a bronze frame, Shades as black-figure roundels,
-   film clip in a scrying pool. Uses the global theme variables. */
+   Torchlit hall: the film clip and the players' camera side by side in gold frames,
+   subtitles in a band beneath. Uses the global theme variables. */
 
 .sg-wrap {
   --bronze: #8a5a2b;
@@ -25,9 +25,9 @@
 .sg-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e3402e; box-shadow: 0 0 10px #e3402e; animation: sg-blink 1s infinite; }
 @keyframes sg-blink { 50% { opacity: .25; } }
 
-/* ---------- layout */
-.sg-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
-@media (max-width: 1000px) { .sg-grid { grid-template-columns: 1fr; } }
+/* ---------- layout: film | camera */
+.sg-duo { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 18px; align-items: end; }
+@media (max-width: 900px) { .sg-duo { grid-template-columns: 1fr; } }
 
 /* ---------- camera frame */
 .sg-frame {
@@ -141,64 +141,63 @@
 .sg-favor-bar div { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--terracotta), var(--gold), #a8e070); background-size: 300% 100%; background-position: 0 0; transition: width .2s linear; }
 .sg-plaque-label { margin-top: 4px; font: 600 .72rem 'Cinzel', serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 
-/* ---------- side panel */
-.sg-side { display: flex; flex-direction: column; gap: 16px; }
-.sg-panel-title { margin: 0; text-align: center; font: 700 1.05rem 'Cinzel', serif; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-soft); }
-.sg-panel-title span { color: var(--terracotta); font-size: .8rem; vertical-align: middle; }
-.sg-panel-sub { margin: 2px 0 10px; text-align: center; font-style: italic; color: var(--muted); font-size: .9rem; }
-
-/* scrying pool */
-.sg-pool { margin: 0; }
-.sg-pool-frame {
-  position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000;
-  border: 2px solid var(--bronze);
-  box-shadow: 0 0 0 4px var(--sea-deep), 0 0 0 5px var(--gold), 0 10px 30px rgba(0, 0, 0, .5);
+/* ---------- the film */
+.sg-film { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.sg-film-cap { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.sg-film-label { font: 700 .85rem 'Cinzel', serif; letter-spacing: .25em; text-transform: uppercase; color: var(--gold-soft); }
+.sg-film-label span { color: var(--terracotta); font-size: .7rem; vertical-align: middle; }
+.sg-hear {
+  font: 600 .72rem 'Cinzel', serif; letter-spacing: .06em; cursor: pointer;
+  padding: 4px 12px; border-radius: 999px; color: var(--muted);
+  background: rgba(10, 16, 32, .6); border: 1px solid rgba(232, 184, 74, .3);
+  transition: color .2s, border-color .2s;
 }
-.sg-pool-frame video { width: 100%; height: 100%; object-fit: cover; display: block; filter: sepia(.25) saturate(1.1); }
-.sg-pool-sheen { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 120%, rgba(30, 90, 120, .35), transparent 60%), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(10, 16, 32, .6)); }
-.sg-pool figcaption { margin-top: 8px; text-align: center; font: 600 .75rem 'Cinzel', serif; letter-spacing: .3em; text-transform: uppercase; color: var(--terracotta); }
+.sg-hear:hover, .sg-hear.on { color: var(--gold); border-color: var(--gold); }
+.sg-hear:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sg-film-frame {
+  position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #000; border-radius: 10px;
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 0 6px var(--sea-deep), 0 0 0 8px var(--bronze), 0 20px 60px rgba(0, 0, 0, .55), 0 0 80px rgba(232, 184, 74, .15);
+}
+.sg-film-frame video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.sg-film-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(10, 6, 14, .55)); }
+.sg-frame-label {
+  position: absolute; top: 12px; left: 14px; z-index: 1; pointer-events: none;
+  font: 700 .72rem 'Cinzel', serif; letter-spacing: .3em; text-transform: uppercase; color: var(--gold-soft);
+  padding: 3px 10px; border-radius: 999px; background: rgba(10, 16, 32, .65);
+}
 
-/* shades cards */
-.sg-shades {
-  padding: 14px 12px; border-radius: 12px;
+/* ---------- subtitle band under film + camera */
+.sg-band {
+  margin-top: 16px; min-height: 104px; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; border: 1px solid rgba(232, 184, 74, .25);
+  background: linear-gradient(180deg, rgba(58, 20, 38, .45), rgba(10, 16, 32, .75));
+}
+.sg-band .sg-prompter { position: static; width: 100%; background: none; padding: 14px 24px; }
+.sg-band-idle { font-style: italic; color: var(--muted); padding: 14px; text-align: center; }
+
+/* ---------- roster (scenes without a film) */
+.sg-roster {
+  margin-top: 18px; padding: 14px; border-radius: 12px;
   background: linear-gradient(180deg, rgba(58, 20, 38, .45), rgba(10, 16, 32, .65));
   border: 1px solid rgba(232, 184, 74, .25);
 }
-.sg-cards { display: flex; flex-direction: column; gap: 10px; }
-@media (max-width: 1000px) { .sg-cards { flex-direction: row; flex-wrap: wrap; } .sg-card { flex: 1; min-width: 260px; } }
-.sg-card {
-  display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px;
-  border: 1px solid transparent; transition: background .3s, border-color .3s, transform .3s;
+.sg-panel-title { margin: 0 0 10px; text-align: center; font: 700 1rem 'Cinzel', serif; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-soft); }
+.sg-panel-title span { color: var(--terracotta); font-size: .8rem; vertical-align: middle; }
+.sg-roster-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.sg-role {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid transparent; border-left: 3px solid var(--pc); transition: background .3s, border-color .3s;
 }
-.sg-card.active { background: rgba(232, 184, 74, .1); border-color: var(--pc); transform: translateX(-4px); }
-.sg-roundel {
-  flex: none; width: 132px; height: 132px; border-radius: 50%; overflow: hidden; position: relative;
-  background:
-    radial-gradient(circle at 50% 40%, #e2864f 0%, var(--clay) 55%, var(--clay-deep) 100%);
-  box-shadow:
-    inset 0 0 0 5px var(--ink),
-    inset 0 0 0 7px var(--clay),
-    inset 0 0 0 9px var(--ink),
-    inset 0 -14px 24px rgba(0, 0, 0, .35),
-    0 6px 18px rgba(0, 0, 0, .45);
-  transition: box-shadow .3s, opacity .3s;
-}
-.sg-card.active .sg-roundel {
-  box-shadow:
-    inset 0 0 0 5px var(--ink), inset 0 0 0 7px var(--gold), inset 0 0 0 9px var(--ink),
-    inset 0 -14px 24px rgba(0, 0, 0, .35), 0 0 26px rgba(232, 184, 74, .55);
-}
-.sg-card.resting .sg-roundel { opacity: .7; }
-.sg-roundel canvas { display: block; }
-.sg-amphora { width: 100%; height: 100%; display: grid; place-items: center; font-size: 3rem; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5)); }
-.sg-card-text { min-width: 0; }
-.sg-card-name { font: 700 1.05rem 'Cinzel', serif; color: var(--gold-soft); }
-.sg-card-player { font: 600 .85rem 'Cinzel', serif; color: var(--pc); }
-.sg-card-hint { margin-top: 4px; font-style: italic; color: var(--muted); font-size: .88rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.sg-card.active .sg-card-hint { color: var(--marble); }
+.sg-role.active { background: rgba(232, 184, 74, .1); border-color: var(--pc); }
+.sg-role-emo { font-size: 1.8rem; flex: none; }
+.sg-role-text { min-width: 0; }
+.sg-role-name { font: 700 1rem 'Cinzel', serif; color: var(--gold-soft); }
+.sg-role-name span { font-weight: 500; color: var(--pc); font-size: .85rem; }
+.sg-role-hint { font-style: italic; color: var(--muted); font-size: .9rem; line-height: 1.25; }
+.sg-role.active .sg-role-hint { color: var(--marble); }
 
 @media (max-width: 640px) {
   .sg-prompter { padding: 16px 12px 12px; }
-  .sg-roundel { width: 100px; height: 100px; }
-  .sg-roundel canvas { width: 100px !important; height: 100px !important; }
+  .sg-band .sg-prompter { padding: 10px 12px; }
 }
