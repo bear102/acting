@@ -7,6 +7,8 @@
 .sx {
   display: flex; flex-direction: column;
   gap: clamp(12px, 2.8vh, 28px);
+  /* fill the window inside the frame, so the chart can take whatever height the cards leave */
+  min-height: calc(100dvh - 170px);
   animation: sx-rise .45s ease both;
 }
 
@@ -26,7 +28,9 @@
 
 /* ------------------------------------------------------------ voyage strip */
 .sx-map-wrap {
-  height: clamp(120px, 26vh, 300px);
+  /* Grows into the free space (up to 300px). Never shorter than the islands need: the chart is
+     cropped, not scaled, to the box, so its height must stay >= ~11% of its width. */
+  flex: 1 1 0; height: auto; max-height: 300px; min-height: max(110px, 11.5vw);
   border-radius: 14px; overflow: hidden;
   border: 1px solid rgba(232, 184, 74, .45);
   box-shadow: 0 0 0 4px rgba(7, 11, 23, .6), 0 10px 30px rgba(0, 0, 0, .35);
@@ -136,15 +140,10 @@
 .sx-meta .ss-diff { margin-left: auto; }
 
 /* ------------------------------------------------------------ tall screens: center the voyage vertically */
-@media (min-height: 900px) and (min-width: 901px) {
-  .sx { min-height: calc(100dvh - 170px); justify-content: center; }
-}
+/* when the chart is at its 300px cap, centre what is left */
+.sx { justify-content: center; }
 
 /* ------------------------------------------------------------ short laptop screens */
-/* short screens: the chart gives its height back so the cards stay above the fold */
-@media (max-height: 780px) {
-  .sx-map-wrap { height: clamp(92px, 19vh, 176px); }
-}
 @media (max-height: 700px) {
   .sx { gap: 10px; }
   .sx-eyebrow { margin-bottom: .5em; font-size: .68rem; }
@@ -156,7 +155,8 @@
   .sx-top { grid-template-columns: 1fr; gap: 8px; }
   .sx-top-spacer { display: none; }
   .sx-title { font-size: 1.6rem; }
-  .sx-map-wrap { height: auto; aspect-ratio: 1000 / 240; } /* whole chart, no cropping */
+  .sx { min-height: 0; }
+  .sx-map-wrap { flex: none; height: auto; min-height: 0; max-height: none; aspect-ratio: 1000 / 240; } /* whole chart, no cropping */
   .sx-art { height: 120px; }
 }
 
