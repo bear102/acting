@@ -73,6 +73,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
         L.models = await loadLandmarkers(nPlayers)
         if (cancelled) return
         L.tracker.setAspect(v.videoWidth / v.videoHeight)
+        stats.model = L.models.model
         setPhase('ready')
         raf = requestAnimationFrame(loop)
       } catch (e) {
@@ -91,7 +92,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
     let frameNo = 0
     let lastUi = 0
     let lastFrameAt = performance.now()
-    const stats = { fps: 0, poseMs: 0, faceMs: 0, skipped: 0 }
+    const stats = { fps: 0, poseMs: 0, faceMs: 0, skipped: 0, frames: 0, detects: 0, faceDetects: 0, detectMsTotal: 0 }
+    window.__stagePerf = stats // read by frontend/scripts/bench-stage.mjs (and handy in devtools)
     // With 3+ people the face mesh is the expensive part: run it every 3rd frame (else 2nd).
     const faceEvery = nPlayers >= 3 ? 3 : 2
     function loop() {
@@ -102,6 +104,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       if (v.readyState >= 2 && v.currentTime !== lastVideoTime) {
         lastVideoTime = v.currentTime
         frameNo++
+        stats.frames++
         stats.fps += (1000 / Math.max(1, now - lastFrameAt) - stats.fps) * 0.1
         const { pose, face } = L.models
         // If detection is running slow, only detect every other frame. The tracker holds
@@ -112,12 +115,18 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
           let t0 = performance.now()
           const pr = pose.detectForVideo(v, now)
           poses = L.tracker.update(pr.landmarks || [], now)
-          stats.poseMs += (performance.now() - t0 - stats.poseMs) * 0.2
+          const dPose = performance.now() - t0
+          stats.poseMs += (dPose - stats.poseMs) * 0.2
+          stats.detects++
+          stats.detectMsTotal += dPose
           if (frameNo % faceEvery === 0 || !L.faces) {
             t0 = performance.now()
             const fr = face.detectForVideo(v, now)
             L.faces = L.tracker.assignFaces(fr.faceLandmarks || [], fr.faceBlendshapes || [], now)
-            stats.faceMs += (performance.now() - t0 - stats.faceMs) * 0.2
+            const dFace = performance.now() - t0
+            stats.faceMs += (dFace - stats.faceMs) * 0.2
+            stats.faceDetects++
+            stats.detectMsTotal += dFace
           }
         } else {
           stats.skipped++
