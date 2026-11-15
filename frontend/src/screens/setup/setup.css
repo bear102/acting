@@ -107,6 +107,38 @@
 .ss-papyrus .ss-judged li { color: #6b4a1e; }
 .ss-papyrus .ss-judged-art { color: #8f3f1f; }
 .ss-frame-inner { position: relative; }
+
+/* ---------- the hearth: painted megaron behind the whole rehearsal screen (portalled to <body>).
+   Static, darkened toward the edges and under the papyrus so the film and script stay readable. */
+.ss-hearth-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 72%, rgba(10, 8, 16, .25), rgba(10, 8, 16, .72) 62%, rgba(7, 6, 12, .92)),
+    linear-gradient(180deg, rgba(7, 6, 12, .55), rgba(7, 6, 12, .15) 40%, rgba(7, 6, 12, .6)),
+    url('/art/generated/hearth.webp') center 60% / cover no-repeat,
+    #0a0710;
+}
+
+/* ---------- rehearsal film in the painted bronze frame (same 9-slice as the stage film:
+   slices top 130 / right 108 / bottom 92 / left 109 of the 1376-wide frame, widths = slice/1376
+   of the framed width, so the 16:9 film fills the opening exactly). */
+.ss-frame { container-type: inline-size; padding: 0; background: none; border: 0; box-shadow: none; }
+.ss-frame-inner {
+  --fw: min(100cqw, calc((100vh - 375px) * 1.574));
+  width: var(--fw); margin: 0 auto; box-sizing: border-box;
+  border-radius: 0; overflow: visible; background: none;
+  border-style: solid;
+  border-width: calc(var(--fw) * .0945) calc(var(--fw) * .0785) calc(var(--fw) * .0669) calc(var(--fw) * .0792);
+  border-image: url('/art/generated/stage-frame.webp') 130 108 92 109 stretch;
+}
+.ss-frame-inner video { width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: none; min-height: 0; }
+@media (max-width: 900px) {
+  .ss-frame-inner { --fw: 100cqw; }
+}
+/* text scenes: the script scrolls inside the papyrus so "Take the stage" stays above the fold */
+@media (min-width: 901px) {
+  .ss-rehearse-single .ss-papyrus { max-height: max(220px, calc(100vh - 330px)); }
+}
 .ss-speaking {
   position: absolute; left: 12px; top: 12px; padding: 4px 14px; border-radius: 999px; pointer-events: none;
   font: 700 clamp(.9rem, 2.2vh, 1.15rem) 'Cinzel', serif; letter-spacing: .06em; color: var(--sea-deep);
