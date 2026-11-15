@@ -303,3 +303,29 @@ body.stage-live .bd-wave { animation: none !important; }
 body.stage-live .of-band::before { filter: none; }
 body.stage-live .bd-embers,
 body.stage-live .bd-torch { display: none; }
+
+/* ============================================================ Painted frame (stage-frame.webp)
+   The bronze frame is a 9-slice border-image: its corners and masks arch keep their proportions
+   while the 16:9 film fills the opening exactly (the painting's own opening is ~2.1:1).
+   Slices = the opening's edges in the 1376x768 source: top 130, right 108, bottom 92, left 109.
+   Border widths = those / 1376 of the framed width (cqw of .sg-cell-film), so the film keeps
+   (1376 - 217) / 1376 = 84.2% of the cell width and the arch sits above the caption, never on it.
+   Framed box = 1.187 x film width wide, 0.754 x film width tall -> aspect 1.574.
+   No filter/shadow here on purpose: a filter on the video's ancestor costs a repaint per frame. */
+/* Width shares 56 / 44 (were 54 / 46): the frame takes ~16% of the film cell, so this keeps the
+   film picture and the camera about the same size. */
+.sg-cell-film {
+  container-type: inline-size;
+  width: min(calc((100cqw - var(--gap)) * .56), calc(100cqh * 1.574));
+}
+.sg-duo .sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .44 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-film {
+  gap: 0;
+  border-style: solid;
+  border-width: 9.45cqw 7.85cqw 6.69cqw 7.92cqw;
+  border-image: url('/art/generated/stage-frame.webp') 130 108 92 109 stretch;
+}
+.sg-film .sg-film-frame { border: 0; border-radius: 0; box-shadow: none; }
+@media (max-width: 900px) {
+  .sg-cell-film { width: 100%; }
+}

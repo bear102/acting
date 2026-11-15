@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { speak } from '../api.js'
 import { PLAYER_COLORS } from '../playerColors.js'
 import { GOD_ART } from '../ui/Art.jsx'
@@ -67,6 +68,9 @@ export default function Rehearse({ scene, team, onGo }) {
 
   return (
     <div className="panel ss-screen ss-rehearse">
+      {/* Painted megaron hall behind the whole screen. Portalled to <body> so the panel's entrance
+          transform can't turn this position:fixed layer into an absolutely positioned one. */}
+      {createPortal(<div className="ss-hearth-bg" aria-hidden="true" />, document.body)}
       <header className="ss-head ss-hearth-head">
         <Flame className="ss-flame" />
         <div>
