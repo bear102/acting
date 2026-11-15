@@ -9,7 +9,7 @@ const EMBERS = Array.from({ length: 18 }, (_, i) => ({
 
 function Wave({ className, d }) {
   return (
-    <svg className={`wave ${className}`} viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
+    <svg className={`bd-wave ${className}`} viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
       <path d={d} />
     </svg>
   )
@@ -22,10 +22,10 @@ const W3 = 'M0 80 Q60 64 120 80 T240 80 T360 80 T480 80 T600 80 T720 80 T840 80 
 export default function Backdrop() {
   return (
     <div className="backdrop" aria-hidden="true">
-      <div className="stars" />
-      <div className="torch torch-l" />
-      <div className="torch torch-r" />
-      <div className="embers">
+      <div className="bd-stars" />
+      <div className="bd-torch bd-torch-l" />
+      <div className="bd-torch bd-torch-r" />
+      <div className="bd-embers">
         {EMBERS.map((e, i) => (
           <span key={i} style={{
             left: `${e.left}%`, animationDelay: `${e.delay}s`, animationDuration: `${e.dur}s`,
@@ -33,10 +33,10 @@ export default function Backdrop() {
           }} />
         ))}
       </div>
-      <div className="sea">
-        <Wave className="w1" d={W1} />
-        <Wave className="w2" d={W2} />
-        <Wave className="w3" d={W3} />
+      <div className="bd-sea">
+        <Wave className="bd-w1" d={W1} />
+        <Wave className="bd-w2" d={W2} />
+        <Wave className="bd-w3" d={W3} />
       </div>
     </div>
   )
