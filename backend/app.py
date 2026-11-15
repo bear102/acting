@@ -134,6 +134,21 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     film_task = asyncio.ensure_future(run_in_threadpool(film_frames.film_pairs, scene, SCENES_DIR, times))
 
     pcm = await run_in_threadpool(_decode, audio_bytes)
+    assignments = {c: int(p) for c, p in m["assignments"].items()}
+
+    # Everything that doesn't need the transcript runs WHILE speech-to-text is in flight:
+    # voice contours, and (once the pose/face features are chosen: server video analysis or the
+    # browser's live samples) the body/face judges. These used to wait behind the STT call.
+    contours_task = asyncio.ensure_future(run_in_threadpool(_contours, pcm))
+
+    async def body_and_face():
+        chosen, tracking_info = await _choose_features(video_task, m)
+        ares_, aphrodite_ = await run_in_threadpool(
+            lambda: (scoring.judge_ares(scene, assignments, chosen),
+                     scoring.judge_aphrodite(scene, assignments, chosen)))
+        return chosen, tracking_info, ares_, aphrodite_
+
+    body_task = asyncio.ensure_future(body_and_face())
 
     # --- ears: ElevenLabs Scribe -> local Whisper -> the browser's own speech recognition
     words = await oracle.transcribe(audio_bytes, audio.filename if audio else "take.webm")
@@ -153,18 +168,17 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     has_times = any(w.get("start") is not None for w in words)
     heard_text = " ".join(w["text"] for w in words)
 
-    # --- the four judges (CPU-bound, off the event loop)
-    contours = await run_in_threadpool(_contours, pcm)
-    assignments = {c: int(p) for c, p in m["assignments"].items()}
-    players, tracking = await _choose_features(video_task, m)
+    # --- the four judges (CPU-bound, off the event loop); Ares/Aphrodite already ran during STT
+    contours = await contours_task
+    players, tracking, ares, aphrodite = await body_task
 
     def judge():
         athena = scoring.judge_athena(scene, words)
         return {
             "athena": athena,
             "apollo": scoring.judge_apollo(scene, contours, athena, has_times),
-            "ares": scoring.judge_ares(scene, assignments, players),
-            "aphrodite": scoring.judge_aphrodite(scene, assignments, players),
+            "ares": ares,
+            "aphrodite": aphrodite,
         }
 
     judges = await run_in_threadpool(judge)

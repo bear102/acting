@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { api } from './api.js'
 import { rollCrewName } from './crewNames.js'
 import Home from './screens/Home.jsx'
 import SceneSelect from './screens/SceneSelect.jsx'
 import TeamSetup from './screens/TeamSetup.jsx'
 import Rehearse from './screens/Rehearse.jsx'
-import Stage from './screens/Stage.jsx'
+// The stage (and MediaPipe with it) is a separate chunk: the first page loads without ~300 kB of
+// vision code. It is fetched during team setup and the detector is warmed during rehearsal,
+// so 'Take the stage' starts without waiting for workers, WASM and models.
+const loadStage = () => import('./screens/Stage.jsx')
+const Stage = lazy(loadStage)
 import Judging from './screens/Judging.jsx'
 import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
@@ -36,6 +40,17 @@ export default function App() {
       setScreen(preview)
     })
   }, [])
+
+  // Warm-up: fetch the stage chunk on team setup; spin up the detector (workers + WASM + models)
+  // for this crew size while they rehearse. preloadDetector is idempotent per team size.
+  const crewSize = team?.players?.length
+  useEffect(() => {
+    if (screen === 'team') loadStage().catch(() => {})
+    if (screen === 'rehearse' && crewSize) {
+      loadStage().catch(() => {})
+      import('./stage/detector.js').then((m) => m.preloadDetector(crewSize)).catch(() => {})
+    }
+  }, [screen, crewSize])
 
   const pickScene = async (id) => {
     setScene(await api.scene(id))
@@ -78,7 +93,9 @@ export default function App() {
         <Rehearse scene={scene} team={team} onBack={() => setScreen('team')} onGo={() => setScreen('stage')} />
       )}
       {screen === 'stage' && (
-        <Stage scene={scene} team={team} onCancel={() => setScreen('rehearse')} onFinish={submit} />
+        <Suspense fallback={<div className="panel center"><p className="muted">Raising the curtain…</p></div>}>
+          <Stage scene={scene} team={team} onCancel={() => setScreen('rehearse')} onFinish={submit} />
+        </Suspense>
       )}
       {screen === 'judging' && <Judging snaps={snaps} />}
       {screen === 'stage-error' && (

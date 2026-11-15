@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PLAYER_COLORS } from '../vision.js'
+import { PLAYER_COLORS } from '../playerColors.js'
 import { GOD_ART } from '../ui/Art.jsx'
 import Voyage from '../verdict/Voyage.jsx'
 import Reel from '../verdict/Reel.jsx'

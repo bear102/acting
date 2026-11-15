@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { speak } from '../api.js'
-import { PLAYER_COLORS } from '../vision.js'
+import { PLAYER_COLORS } from '../playerColors.js'
 import { Flame, MaskArt } from './setup/icons.jsx'
 import { EMOTION_ICONS } from './setup/constants.js'
 import './setup/setup.css'

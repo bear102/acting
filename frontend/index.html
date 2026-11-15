@@ -6,9 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070b17" />
     <meta name="description" content="Trials of Odysseus: act out scenes from the Odyssey and be judged by the gods of Olympus." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+    <!-- Self-hosted fonts (SIL OFL, latin subset, variable weight): no render-blocking request to
+         Google, so first paint and the theme fonts don't depend on the venue wifi. -->
+    <link rel="preload" href="/fonts/cinzel-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/eb-garamond-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face { font-family: 'Cinzel'; font-style: normal; font-weight: 400 900; font-display: swap;
+        src: url(/fonts/cinzel-latin.woff2) format('woff2'); }
+      @font-face { font-family: 'EB Garamond'; font-style: normal; font-weight: 400 800; font-display: swap;
+        src: url(/fonts/eb-garamond-latin.woff2) format('woff2'); }
+      @font-face { font-family: 'EB Garamond'; font-style: italic; font-weight: 400 800; font-display: swap;
+        src: url(/fonts/eb-garamond-italic-latin.woff2) format('woff2'); }
+    </style>
     <title>Trials of Odysseus</title>
   </head>
   <body>

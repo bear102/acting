@@ -16,7 +16,7 @@
 }
 .of-band::before, .of-band::after { content: ''; position: absolute; }
 /* the travelling wave */
-.of-band::before { background-image: var(--wave); filter: drop-shadow(0 0 3px rgba(232, 184, 74, .45)); }
+.of-band::before { background-image: var(--wave); filter: drop-shadow(0 0 3px rgba(232, 184, 74, .45)); will-change: transform; }
 /* the static Greek key on the inner edge */
 .of-band::after { background-image: var(--key); opacity: .85; }
 
@@ -44,23 +44,22 @@
 .of-left::after { right: 0; transform: scaleX(-1); }
 
 /* The scroll travels clockwise around the page: right along the top, down the right side,
-   left along the bottom, up the left side. One tile per cycle keeps it seamless. */
-.of-full .of-top::before { animation: of-east-21 1.6s linear infinite; }
-.of-full .of-bottom::before { animation: of-west-21 1.6s linear infinite; }
-.of-full .of-right::before { animation: of-south-21 1.6s linear infinite; }
-.of-full .of-left::before { animation: of-north-21 1.6s linear infinite; }
-.of-thin .of-top::before { animation: of-east-15 1.6s linear infinite; }
-.of-thin .of-bottom::before { animation: of-west-15 1.6s linear infinite; }
-.of-thin .of-right::before { animation: of-south-15 1.6s linear infinite; }
-.of-thin .of-left::before { animation: of-north-15 1.6s linear infinite; }
-@keyframes of-east-21 { to { background-position: 21px 0; } }
-@keyframes of-west-21 { to { background-position: -21px 0; } }
-@keyframes of-south-21 { to { background-position: 0 21px; } }
-@keyframes of-north-21 { to { background-position: 0 -21px; } }
-@keyframes of-east-15 { to { background-position: 15px 0; } }
-@keyframes of-west-15 { to { background-position: -15px 0; } }
-@keyframes of-south-15 { to { background-position: 0 15px; } }
-@keyframes of-north-15 { to { background-position: 0 -15px; } }
+   left along the bottom, up the left side. Each wave strip is one tile longer than its band and
+   slides by exactly one tile per cycle (seamless). It moves with transform, not
+   background-position, so the compositor animates it and the glow filter is rasterised once
+   instead of repainting the whole border every frame. */
+.of-top::before { left: calc(-1 * var(--tile)); right: 0; }
+.of-bottom::before { left: 0; right: calc(-1 * var(--tile)); }
+.of-right::before { top: calc(-1 * var(--tile)); bottom: 0; }
+.of-left::before { top: 0; bottom: calc(-1 * var(--tile)); }
+.of-root .of-top::before { animation: of-east 1.6s linear infinite; }
+.of-root .of-bottom::before { animation: of-west 1.6s linear infinite; }
+.of-root .of-right::before { animation: of-south 1.6s linear infinite; }
+.of-root .of-left::before { animation: of-north 1.6s linear infinite; }
+@keyframes of-east { from { transform: translateX(0); } to { transform: translateX(var(--tile)); } }
+@keyframes of-west { from { transform: translateX(0) scaleY(-1); } to { transform: translateX(calc(-1 * var(--tile))) scaleY(-1); } }
+@keyframes of-south { from { transform: translateY(0); } to { transform: translateY(var(--tile)); } }
+@keyframes of-north { from { transform: translateY(0) scaleX(-1); } to { transform: translateY(calc(-1 * var(--tile))) scaleX(-1); } }
 
 /* corner volutes */
 .of-corner { position: fixed; width: var(--c); height: var(--c); filter: drop-shadow(0 0 8px rgba(232, 184, 74, .35)); }
@@ -72,47 +71,32 @@
 .of-volute path:first-of-type, .of-volute path:nth-of-type(2) { transform-origin: center; }
 
 /* gentle shimmer on the corner capitals */
-.of-full .of-corner { animation: of-glint 6s ease-in-out infinite; }
-.of-full .of-tr { animation-delay: 1.5s; }
-.of-full .of-br { animation-delay: 3s; }
-.of-full .of-bl { animation-delay: 4.5s; }
-@keyframes of-glint { 50% { filter: drop-shadow(0 0 14px rgba(243, 213, 140, .6)); } }
+/* (opacity on a pre-drawn glow: animating filter re-rasterised the corners every frame) */
+.of-corner::after { content: ''; position: absolute; inset: -30%; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(243, 213, 140, .38), transparent 62%); }
+.of-full .of-corner::after { animation: of-glint 6s ease-in-out infinite; }
+.of-full .of-tr::after { animation-delay: 1.5s; }
+.of-full .of-br::after { animation-delay: 3s; }
+.of-full .of-bl::after { animation-delay: 4.5s; }
+@keyframes of-glint { 50% { opacity: 1; } }
 
 /* Large monitors: a touch more presence */
 @media (min-width: 1700px) {
   .of-root.of-full { --t: 16px; --k: 8px; --f: 24px; --tile: 24px; --c: 54px; }
-  .of-full .of-top::before { animation-name: of-east-24; }
-  .of-full .of-bottom::before { animation-name: of-west-24; }
-  .of-full .of-right::before { animation-name: of-south-24; }
-  .of-full .of-left::before { animation-name: of-north-24; }
 }
-@keyframes of-east-24 { to { background-position: 24px 0; } }
-@keyframes of-west-24 { to { background-position: -24px 0; } }
-@keyframes of-south-24 { to { background-position: 0 24px; } }
-@keyframes of-north-24 { to { background-position: 0 -24px; } }
 
 /* Short laptop screens (1366x768 etc.): keep the frame slim */
 @media (max-height: 820px) {
   .of-root.of-full { --t: 12px; --k: 6px; --f: 18px; --tile: 18px; --c: 40px; }
-  .of-full .of-top::before { animation-name: of-east-18; }
-  .of-full .of-bottom::before { animation-name: of-west-18; }
-  .of-full .of-right::before { animation-name: of-south-18; }
-  .of-full .of-left::before { animation-name: of-north-18; }
 }
-@keyframes of-east-18 { to { background-position: 18px 0; } }
-@keyframes of-west-18 { to { background-position: -18px 0; } }
-@keyframes of-south-18 { to { background-position: 0 18px; } }
-@keyframes of-north-18 { to { background-position: 0 -18px; } }
 
 /* Phones: top and bottom bands only, thin */
 @media (max-width: 600px) {
   .of-root, .of-root.of-full { --t: 10px; --k: 0px; --f: 10px; --tile: 15px; --c: 26px; }
   .of-left, .of-right { display: none; }
   .of-shell { padding-left: 0; padding-right: 0; }
-  .of-full .of-top::before { animation-name: of-east-15; }
-  .of-full .of-bottom::before { animation-name: of-west-15; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .of-band::before, .of-corner { animation: none !important; }
+  .of-band::before, .of-corner, .of-corner::after { animation: none !important; }
 }
