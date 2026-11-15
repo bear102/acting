@@ -95,6 +95,13 @@
 @keyframes lp-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.08); } }
 /* the Cyclops searches the water: the pupil slides side to side inside the blinking eye */
 .lp-eye-look { animation: lp-look 11s ease-in-out infinite; }
+/* ...until a cursor shows up: then both eyes (cave and sail) follow it. --lx/--ly are set per
+   eye by LandingScene, in SVG units, already limited to stay inside the eye. */
+.lp-tracking .lp-eye-look { animation: none; }
+.lp-tracking .lp-eye-look, .lp-sail-pupil {
+  transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px));
+  transition: transform .18s ease-out;
+}
 @keyframes lp-look { 0%, 100% { transform: translateX(-5px); } 45%, 60% { transform: translateX(6px); } }
 .lp-temple { fill: #e9d7ac; opacity: .78; }
 .lp-cypress { fill: #07091a; }

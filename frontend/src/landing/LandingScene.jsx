@@ -90,10 +90,17 @@ function CloudBank({ className }) {
   )
 }
 
+// [pupil group, eye it sits in, max pupil travel x, y] for the eyes that follow the cursor
+const EYES = [
+  ['.lp-sail-pupil', '.lp-sail-eye', 9, 3.5],
+  ['.lp-eye-look', '.lp-eye-core', 7, 1.6],
+]
+
 export default function LandingScene() {
   const root = useRef(null)
 
   // Mouse parallax: lerp toward the pointer, write --px/--py, stop when settled.
+  // The same pointer steers the two eyes (Athena's on the sail, the Cyclops's in the cave).
   useEffect(() => {
     const el = root.current
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -102,24 +109,49 @@ export default function LandingScene() {
     document.addEventListener('visibilitychange', onVis)
     if (reduce || coarse) return () => document.removeEventListener('visibilitychange', onVis)
 
+    // Each eye: the pupil group to move, the eye it sits in, and how far the pupil may travel
+    // (SVG units) before it would leave the white.
+    const eyes = EYES.map(([pupil, socket, maxX, maxY]) => ({
+      pupil: el.querySelector(pupil), socket: el.querySelector(socket), maxX, maxY,
+    })).filter((e) => e.pupil && e.socket)
+    let cx = null, cy = null // last pointer position, px
+    const aim = () => {
+      if (cx == null) return
+      for (const e of eyes) {
+        const r = e.socket.getBoundingClientRect()
+        const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2)
+        const dist = Math.hypot(dx, dy) || 1
+        const reach = Math.min(1, dist / 90) // a cursor right on the eye is met with a level gaze
+        e.pupil.style.setProperty('--lx', ((dx / dist) * e.maxX * reach).toFixed(2))
+        e.pupil.style.setProperty('--ly', ((dy / dist) * e.maxY * reach).toFixed(2))
+      }
+    }
+
     let tx = 0, ty = 0, x = 0, y = 0, raf = 0
     const step = () => {
       x += (tx - x) * 0.08
       y += (ty - y) * 0.08
       el.style.setProperty('--px', x.toFixed(4))
       el.style.setProperty('--py', y.toFixed(4))
+      aim()
       raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.002 ? requestAnimationFrame(step) : 0
     }
     const onMove = (e) => {
-      tx = (e.clientX / window.innerWidth) * 2 - 1
-      ty = (e.clientY / window.innerHeight) * 2 - 1
+      cx = e.clientX
+      cy = e.clientY
+      tx = (cx / window.innerWidth) * 2 - 1
+      ty = (cy / window.innerHeight) * 2 - 1
+      el.classList.add('lp-tracking')
       if (!raf) raf = requestAnimationFrame(step)
     }
     window.addEventListener('pointermove', onMove, { passive: true })
+    // The ship keeps sailing under a resting cursor, so re-aim now and then even without movement
+    const keepAiming = setInterval(() => { if (!document.hidden) aim() }, 250)
     return () => {
       window.removeEventListener('pointermove', onMove)
       document.removeEventListener('visibilitychange', onVis)
       cancelAnimationFrame(raf)
+      clearInterval(keepAiming)
     }
   }, [])
 
@@ -278,9 +310,11 @@ function Galley() {
         <path d="M72 26 Q130 14 188 26" fill="none" stroke="#0b0f1c" strokeWidth="4" />
         <path d="M80 48 Q130 40 182 48 M78 70 Q130 62 184 70 M78 90 Q130 82 184 90" stroke="#8f3f1f" strokeWidth="2" fill="none" opacity=".6" />
         {/* painted eye of Athena on the sail */}
-        <ellipse cx="130" cy="60" rx="18" ry="11" fill="#f3e3c2" />
-        <circle cx="130" cy="60" r="7" fill="#0b0f1c" />
-        <circle cx="132" cy="58" r="2" fill="#f3e3c2" />
+        <ellipse className="lp-sail-eye" cx="130" cy="60" rx="18" ry="11" fill="#f3e3c2" />
+        <g className="lp-sail-pupil">
+          <circle cx="130" cy="60" r="7" fill="#0b0f1c" />
+          <circle cx="132" cy="58" r="2" fill="#f3e3c2" />
+        </g>
       </g>
       <path d="M14 128 Q30 122 44 132 L206 132 Q226 130 242 116 L248 120 Q238 142 214 152 L56 152 Q30 150 14 128 Z" fill="#0b0f1c" />
       <path d="M14 128 Q2 108 18 96 Q28 90 32 100 Q22 106 26 118 Z" fill="#0b0f1c" />
