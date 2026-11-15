@@ -64,3 +64,28 @@ def leaderboard(scene_id: str | None = None, limit: int = 20) -> list[dict]:
     if scene_id:
         runs = [r for r in runs if r.get("scene_id") == scene_id]
     return sorted(runs, key=lambda r: r.get("kleos", 0), reverse=True)[:limit]
+
+
+def best_by_scene() -> dict[str, dict]:
+    """Voyage progress: each scene's best run {kleos, rank, team_name, plays}. Scenes never played are absent."""
+    keep = ("kleos", "rank", "team_name")
+    col = _mongo()
+    if col is not None:
+        out = {}
+        for r in col.aggregate([{"$sort": {"kleos": -1}},
+                                {"$group": {"_id": "$scene_id", "best": {"$first": "$$ROOT"}, "plays": {"$sum": 1}}}]):
+            out[r["_id"]] = {k: r["best"].get(k) for k in keep} | {"plays": r["plays"]}
+        return out
+    if not _LOCAL.exists():
+        return {}
+    out: dict[str, dict] = {}
+    for r in json.loads(_LOCAL.read_text()):
+        sid = r.get("scene_id")
+        if not sid:
+            continue
+        cur = out.get(sid)
+        plays = (cur["plays"] if cur else 0) + 1
+        if cur is None or r.get("kleos", 0) > cur["kleos"]:
+            cur = {k: r.get(k) for k in keep} | {"kleos": r.get("kleos", 0)}
+        out[sid] = cur | {"plays": plays}
+    return out
