@@ -1,0 +1,95 @@
+/* ---------- Home: temple, proem, shield CTA, god medallions, sea voyage ---------- */
+.oh { text-align: center; padding-top: clamp(8px, 3vh, 36px); animation: rise .6s ease both; }
+
+/* temple */
+.oh-temple { max-width: 860px; margin: 0 auto; color: var(--gold); }
+.oh-pediment { display: block; width: 100%; height: auto; max-height: 120px; filter: drop-shadow(0 0 14px rgba(232, 184, 74, .25)); }
+.oh-portico { display: grid; grid-template-columns: 52px 1fr 52px; align-items: stretch; gap: 12px; padding: 0 20px; }
+.oh-column { width: 100%; height: 100%; min-height: 150px; color: var(--gold-soft); opacity: .8; }
+.oh-title-block { padding: 14px 0 6px; }
+.oh-title { margin: 8px 0 0; }
+.oh-stylobate {
+  height: 14px; margin: 0 6px;
+  background:
+    linear-gradient(var(--gold), var(--gold)) 0 0 / 100% 3px no-repeat,
+    linear-gradient(var(--gold-deep), var(--gold-deep)) 10px 6px / calc(100% - 20px) 3px no-repeat,
+    linear-gradient(rgba(168, 119, 42, .6), rgba(168, 119, 42, .6)) 20px 11px / calc(100% - 40px) 3px no-repeat;
+}
+
+/* proem: words rise one by one, like a bard reciting */
+.oh-proem { margin: 26px auto 6px; max-width: 640px; padding: 0 12px; }
+.oh-proem p { font-style: italic; font-size: clamp(1.1rem, 2.1vw, 1.35rem); color: var(--gold-soft); margin: 0; line-height: 1.45; }
+.oh-proem span { display: inline-block; white-space: pre; opacity: 0; animation: oh-word .7s ease forwards; animation-delay: calc(.6s + var(--i) * 110ms); }
+.oh-proem cite { display: block; margin-top: 6px; font-style: normal; font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+@keyframes oh-word { from { opacity: 0; transform: translateY(8px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+.oh-tagline { margin-top: 14px; }
+
+/* bronze shield call-to-action */
+.oh-actions { display: flex; gap: 16px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 26px 0 8px; }
+.oh-shield {
+  display: inline-flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 14px 34px 14px 16px; border-radius: 999px;
+  font: 700 1.15rem 'Cinzel', serif; letter-spacing: .08em; color: #2a1606;
+  background: radial-gradient(ellipse at 35% 25%, #ffe2a3 0%, var(--gold) 35%, var(--bronze) 75%, #6e4219 100%);
+  border: 0;
+  box-shadow:
+    inset 0 0 0 3px #f6d690, inset 0 0 0 6px #6e4219, inset 0 0 0 8px rgba(255, 236, 190, .55),
+    0 8px 28px rgba(232, 184, 74, .35), 0 2px 0 #4b2c10;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, .6);
+  transition: transform .15s, box-shadow .15s;
+}
+.oh-shield:hover { transform: translateY(-2px) scale(1.02); box-shadow:
+  inset 0 0 0 3px #f6d690, inset 0 0 0 6px #6e4219, inset 0 0 0 8px rgba(255, 236, 190, .55),
+  0 12px 40px rgba(232, 184, 74, .55), 0 2px 0 #4b2c10; }
+.oh-shield:focus-visible { outline: 3px solid var(--marble); outline-offset: 4px; }
+.oh-boss { width: 34px; height: 34px; color: #5a3412; flex: none; animation: oh-spin 24s linear infinite; }
+@keyframes oh-spin { to { transform: rotate(360deg); } }
+
+/* god medallions */
+.oh-gods { list-style: none; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: clamp(14px, 4vw, 40px); margin: 30px 0 4px; }
+.oh-medallion { display: flex; flex-direction: column; align-items: center; animation: rise .6s ease both; animation-delay: calc(1s + var(--k) * 120ms); }
+.oh-medal-disc {
+  width: clamp(66px, 8vw, 86px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 40% 35%, var(--clay), var(--clay-dark) 75%);
+  box-shadow: inset 0 0 0 3px var(--gold), inset 0 0 0 6px var(--clay-dark), inset 0 0 0 7px rgba(232, 184, 74, .5),
+    0 6px 18px rgba(0, 0, 0, .45), 0 0 22px rgba(208, 97, 58, .25);
+  transition: transform .2s;
+}
+.oh-medallion:hover .oh-medal-disc { transform: translateY(-3px) rotate(-4deg); }
+.oh-medal-art { width: 56%; height: 56%; color: var(--ink); }
+.oh-god-name { font: 700 .95rem 'Cinzel', serif; color: var(--gold-soft); margin-top: 8px; }
+.oh-god-domain { font-size: .8rem; color: var(--muted); }
+
+/* sea voyage */
+.oh-sea { position: relative; height: clamp(90px, 14vh, 130px); max-width: 980px; margin: 8px auto 6px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.oh-wave { position: absolute; left: 0; bottom: 0; width: 200%; height: 100%; animation: oh-swell 16s linear infinite; }
+.oh-wave path { stroke: var(--gold); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.oh-wave-back path { fill: rgba(62, 18, 41, .55); stroke-opacity: .35; }
+.oh-wave-mid { animation-duration: 11s; animation-direction: reverse; }
+.oh-wave-mid path { fill: rgba(42, 14, 34, .85); stroke-opacity: .55; }
+.oh-wave-front { animation-duration: 8s; }
+.oh-wave-front path { fill: #12081a; stroke-opacity: .8; }
+@keyframes oh-swell { to { transform: translateX(-50%); } }
+.oh-sail { position: absolute; bottom: 22%; left: 0; width: clamp(90px, 13vw, 140px); animation: oh-voyage 38s linear infinite; }
+.oh-ship { display: block; width: 100%; color: #0c0710; filter: drop-shadow(0 0 10px rgba(232, 184, 74, .4)); animation: oh-bob 3.2s ease-in-out infinite; }
+@keyframes oh-voyage { from { transform: translateX(-160px); } to { transform: translateX(1000px); } }
+@keyframes oh-bob { 50% { transform: translateY(5px) rotate(-2deg); } }
+
+/* laptops with short screens: compress the temple so the CTA stays above the fold */
+@media (max-height: 820px) {
+  .oh-pediment { max-height: 84px; }
+  .oh-column { min-height: 110px; }
+  .oh-proem { margin-top: 16px; }
+  .oh-gods { margin-top: 18px; }
+}
+@media (max-width: 640px) {
+  .oh-portico { grid-template-columns: 1fr; padding: 0 8px; }
+  .oh-column { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oh-proem span { animation: none; opacity: 1; }
+  .oh-wave, .oh-sail, .oh-ship, .oh-boss { animation: none; }
+  .oh-sail { left: 40%; }
+}
