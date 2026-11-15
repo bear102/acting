@@ -1,3 +1,4 @@
+import { loop, play, stopLoop } from '../audio/sfx.js'
 import PageBackdrop from '../ui/PageBackdrop.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
@@ -32,6 +33,12 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
   // Outside the top 20 the API returns: pin your own row under the table. The place is per trial, so never on "All trials".
   const pinned = !!(rows && highlight?.hall && sceneId === highlight.scene_id && mine < 0)
   const next = highlight?.reel?.voyage?.next
+  // Wind over the stele; applause once if this crew's run made the top three
+  useEffect(() => { loop('ambience', 'amb-wind'); return () => stopLoop('ambience') }, [])
+  const cheered = useRef(false)
+  useEffect(() => {
+    if (!cheered.current && mine >= 0 && mine < 3) { cheered.current = true; play('applause') }
+  }, [mine])
 
   return (
     <div className="panel ol">

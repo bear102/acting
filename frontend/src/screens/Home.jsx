@@ -1,3 +1,4 @@
+import { loop, stopLoop } from '../audio/sfx.js'
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import { Rosette } from '../theme/Temple.jsx'
@@ -14,6 +15,12 @@ const STEPS = [
 export default function Home({ onStart, onHall }) {
   const [health, setHealth] = useState(null)
   useEffect(() => { api.health().then(setHealth).catch(() => setHealth({ ok: false })) }, [])
+  // Lyre theme + night sea (start after the first click; stop when leaving the landing)
+  useEffect(() => {
+    loop('music', 'theme')
+    loop('ambience', 'amb-sea', { volume: 0.18 })
+    return () => { stopLoop('music'); stopLoop('ambience') }
+  }, [])
 
   return (
     <div className="lp">

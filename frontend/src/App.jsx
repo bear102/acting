@@ -1,4 +1,5 @@
-﻿import { lazy, Suspense, useEffect, useState } from 'react'
+﻿import MuteToggle from './audio/MuteToggle.jsx'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { api } from './api.js'
 import { rollCrewName } from './crewNames.js'
 import Home from './screens/Home.jsx'
@@ -84,6 +85,7 @@ export default function App() {
   return (
     <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
+    {screen !== 'stage' && <MuteToggle />}
     {screen !== 'stage' && <FullscreenButton />}
     <div className={`app screen-${screen}`}>
       {/* Where you are in the game. Finished steps are links back; judging shows the last step pending.

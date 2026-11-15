@@ -9,6 +9,7 @@ import Prompter from '../stage/Prompter.jsx'
 import Roster from '../stage/Roster.jsx'
 import { snapshotPlan } from '../stage/snapshots.js'
 import useFullscreen from '../stage/useFullscreen.js'
+import { play, setRecording } from '../audio/sfx.js'
 import '../stage/stage.css'
 import '../stage/stage-perf.css'
 
@@ -312,6 +313,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
 
   // ---------------------------------------------------------------- take control
   const begin = () => {
+    play('gong', { allowOnStage: true })
     setPhase('countdown')
     let n = 3
     setCount(n)
@@ -326,6 +328,7 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
   }
 
   function startRecording() {
+    setRecording(true) // silence everything before the mic starts (no sound may bleed into the take)
     const L = live.current
     L.features = Array.from({ length: nPlayers }, () => ({ pose: [], face: [] }))
     L.nextSample = 0
@@ -404,6 +407,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
       stopRec(L.videoRecorder, L.videoChunks, 'video/webm'),
     ])
     const video = recorded && recorded.size > 1000 ? recorded : null
+    setRecording(false)
+    play('cut', { allowOnStage: true })
     if (L.snaps.length === 0) L.snapshot(L.lastT)
     // Keep frames and their times paired even if a toBlob() failed
     const blobs = await Promise.all(L.snaps)
