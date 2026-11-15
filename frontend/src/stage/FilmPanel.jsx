@@ -62,16 +62,18 @@ export default function FilmPanel({ src, getTime, getPhase }) {
 
   return (
     <figure className="sg-film">
-      <figcaption className="sg-film-cap">
-        <span className="sg-film-label"><span>✦</span> The Shades of the Past <span>✦</span></span>
-        <button type="button" className={`sg-hear ${hear ? 'on' : ''}`} onClick={toggle}
-          title="The film's audio is muted so it doesn't leak into your microphone">
-          {hear ? '🔊 Film audio on (use headphones)' : '🔈 Hear the film (use headphones)'}
-        </button>
-      </figcaption>
       <div className="sg-film-frame">
         <video ref={ref} src={src} muted playsInline preload="auto" />
         <div className="sg-film-vignette" />
+        {/* Caption sits inside the frame so the film and the camera line up and keep full height */}
+        <figcaption className="sg-film-cap">
+          <span className="sg-film-label"><span>✦</span> The Shades of the Past <span>✦</span></span>
+          <button type="button" className={`sg-hear ${hear ? 'on' : ''}`} onClick={toggle}
+            aria-label={hear ? 'Mute the film' : 'Hear the film (use headphones)'}
+            title="The film's audio is muted so it doesn't leak into your microphone. Use headphones if you turn it on.">
+            {hear ? '🔊' : '🔈'}<span className="sg-hear-text">{hear ? ' Film audio on' : ' Hear the film'}</span>
+          </button>
+        </figcaption>
       </div>
     </figure>
   )

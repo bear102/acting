@@ -15,7 +15,7 @@ const RING = 2 * Math.PI * 34
 const STT_NAMES = { elevenlabs: 'ElevenLabs Scribe', whisper: 'Whisper', browser: 'browser speech recognition' }
 
 // Verdict = where you landed (voyage) -> how each line went (reel) -> the four gods -> laurels.
-export default function Verdict({ result, scene, team, snaps, onRetry, onNew, onHall }) {
+export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall }) {
   const [arrived, setArrived] = useState(false)
   const [past] = useState(() => recall(result)) // this crew's earlier voyages, read before we record this one
   const charName = (id) => scene.characters.find((c) => c.id === id)?.name || id

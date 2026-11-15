@@ -55,3 +55,16 @@
   .ol-title { gap: 6px; }
   .ol-pediment { max-height: 60px; }
 }
+
+/* laptop fit: wider stele so every trial tab is visible (wrap instead of a hidden h-scroll),
+   and a compact header on short screens so the top heroes show without scrolling */
+@media (min-width: 1000px) {
+  .ol { max-width: 1000px; }
+  .ol-tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 4px; }
+}
+@media (max-height: 820px) {
+  .ol-pediment { max-height: 56px; }
+  .ol-slab { padding-top: 14px; }
+  .ol-title { margin: 4px 0 10px; font-size: clamp(1.4rem, 4vh, 2rem); }
+  .ol-table td { padding-top: 6px; padding-bottom: 6px; }
+}
