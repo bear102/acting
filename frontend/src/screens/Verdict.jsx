@@ -104,12 +104,14 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
       {result.stars?.length > 0 && (
         <>
           <h3 className="section-title">Stars of the crew</h3>
-          <div className="stars">
+          <div className="crew">
             {result.stars.map((s, i) => (
-              <div key={i} className="star" style={{ borderColor: PLAYER_COLORS[i] }}>
-                <strong style={{ color: PLAYER_COLORS[i] }}>{s.name}</strong>
-                <span className="muted small">{s.characters.map(charName).join(' / ')}</span>
-                <span className="star-score">{s.score}</span>
+              <div key={i} className="crew-card" style={{ '--player': PLAYER_COLORS[i % PLAYER_COLORS.length] }}>
+                <div className="crew-info">
+                  <span className="crew-name">{s.name}</span>
+                  <span className="crew-role">as {s.characters.map(charName).join(' / ')}</span>
+                </div>
+                <span className="crew-score" aria-label={`score ${s.score}`}>{s.score}</span>
               </div>
             ))}
           </div>
