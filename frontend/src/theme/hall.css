@@ -84,3 +84,6 @@
 .ol-slab > * { position: relative; }
 .ol-rank-cell { display: inline-flex; align-items: center; gap: 8px; }
 .ol-rank-badge { width: 30px; height: 30px; flex: none; border-radius: 50%; }
+
+.ol-empty-art { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ol-empty-art img { width: clamp(96px, 16vh, 150px); height: auto; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .5)); }

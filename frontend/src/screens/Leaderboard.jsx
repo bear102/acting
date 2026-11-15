@@ -58,7 +58,12 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
           </div>
 
           {!rows && <p className="ol-empty">Reading the stone tablets…</p>}
-          {rows?.length === 0 && !pinned && <p className="ol-empty">No heroes carved here yet. Be the first.</p>}
+          {rows?.length === 0 && !pinned && (
+            <div className="ol-empty ol-empty-art">
+              <img src="/art/generated/empty-laurel.webp" alt="" width="384" height="384" decoding="async" />
+              <p>No heroes carved here yet. Be the first.</p>
+            </div>
+          )}
           {(rows?.length > 0 || pinned) && (
             <table className="hall ol-table">
               <thead><tr><th>#</th><th>Crew</th><th>Trial</th><th>Rank</th><th className="num">Kleos</th></tr></thead>
