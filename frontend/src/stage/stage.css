@@ -295,3 +295,14 @@
   .sg-plaque { min-width: 150px; }
   .sg-title { white-space: normal; }
 }
+
+/* ---------- performance: while the stage is up (body.stage-live, set by the stage),
+   freeze the decorative layers so the GPU/CPU go to the camera, MediaPipe and the film.
+   The frame and backdrop stay visible, they just stop moving and drop their filters. */
+body.stage-live .of-band::before,
+body.stage-live .of-corner,
+body.stage-live .backdrop *,
+body.stage-live .bd-wave { animation: none !important; }
+body.stage-live .of-band::before { filter: none; }
+body.stage-live .bd-embers,
+body.stage-live .bd-torch { display: none; }
