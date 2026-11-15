@@ -1,134 +1,230 @@
-/* Crew setup ("who plays whom"): one row of character cards, a slim toolbar, one CTA.
-   Laptop first: everything fits 1280x620 without scrolling. Classes prefixed cs- */
+/* Crew setup: the screen is the stage. One column per player in standing order; each column is
+   that player's masks on a numbered plinth, pinned to the stage edge in front of the camera.
+   Laptop first: fits 1280x720 and 1366x768 inside the frame without scrolling. Classes prefixed cs- */
 
 .cs {
-  max-width: 980px; margin: 0 auto;
-  display: flex; flex-direction: column; align-items: center;
-  gap: clamp(12px, 2.4vh, 22px);
-  /* fill the viewport inside the Odyssey frame + app padding and center vertically */
-  min-height: calc(100dvh - 2 * var(--f, 21px) - clamp(36px, 7.6vh, 80px));
-  justify-content: center;
-  padding-bottom: 4vh; /* sit slightly above true center */
+  --cs-gap: clamp(10px, 1.5vw, 18px);
+  max-width: 1120px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: clamp(10px, 2.3vh, 22px);
+  /* fill the viewport inside the Odyssey frame, app padding and journey strip; center vertically */
+  min-height: calc(100dvh - 2 * var(--f, 21px) - clamp(36px, 7.6vh, 80px) - 52px);
 }
 
-/* ---- header */
-.cs-head { text-align: center; }
-.cs-head h2 { margin: .25em 0 .1em; font-size: clamp(1.6rem, 4.6vh, 2.4rem); line-height: 1.15; }
-.cs-sub { margin: 0; color: var(--muted); font-style: italic; font-size: 1.08rem; }
+/* ---- header: back, book + trial */
+.cs-top { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.cs-back { justify-self: start; margin: 0; padding: 6px 4px; }
+.cs-head { text-align: center; min-width: 0; }
+.cs-head .eyebrow { font-size: .72rem; }
+.cs-head h2 { margin: .2em 0 0; font-size: clamp(1.45rem, 4.2vh, 2.2rem); line-height: 1.12; }
 
-/* ---- toolbar: crew name + player count */
-.cs-bar { display: flex; align-items: center; justify-content: center; gap: 14px 22px; flex-wrap: wrap; }
+/* ---- toolbar: crew name + player count, two matching pills */
+.cs-bar { display: flex; align-items: center; justify-content: center; gap: 10px 16px; flex-wrap: wrap; max-width: 100%; }
+.cs-pill {
+  display: flex; align-items: center; height: 44px; padding: 0 5px 0 16px; border-radius: 999px;
+  background: rgba(7, 11, 23, .6); border: 1px solid rgba(232, 184, 74, .35);
+  transition: border-color .15s, box-shadow .15s;
+}
+.cs-pill:hover { border-color: rgba(232, 184, 74, .6); }
+.cs-pill:focus-within { border-color: var(--gold-soft); box-shadow: 0 0 0 1px var(--gold-soft), 0 0 22px rgba(232, 184, 74, .18); }
+.cs-tag { font: 600 .68rem 'Cinzel', serif; letter-spacing: .2em; text-transform: uppercase; color: var(--terracotta); flex: none; }
+
+.cs-crew-pill { cursor: text; min-width: 0; }
 .cs-crew {
-  width: 280px; padding: 9px 14px; border-radius: 999px;
-  background: rgba(7, 11, 23, .55); border: 1px solid rgba(232, 184, 74, .35); color: var(--marble);
-  font: 1rem 'EB Garamond', serif;
+  width: 345px; min-width: 0; padding: 0 8px 0 12px; border: 0; border-radius: 0; background: none;
+  font: 600 1.02rem 'Cinzel', serif; letter-spacing: .02em; color: var(--gold-soft);
+  animation: cs-roll-in .28s ease backwards;
 }
-.cs-crew-wrap { position: relative; display: flex; }
-.cs-crew-wrap .cs-crew { padding-right: 44px; }
+.cs-crew:focus { outline: none; }
+.cs-crew::placeholder { color: var(--muted); font-weight: 400; }
 .cs-roll {
-  position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; padding: 6px;
-  border-radius: 50%; border: 0; background: none; color: var(--gold-soft); cursor: pointer; transition: transform .25s, background .15s;
+  width: 34px; height: 34px; flex: none; padding: 7px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(232, 184, 74, .12); color: var(--gold-soft); transition: transform .3s cubic-bezier(.3, 1.6, .5, 1), background .15s;
 }
-.cs-roll:hover { background: rgba(232, 184, 74, .18); transform: translateY(-50%) rotate(90deg); }
-.cs-roll:focus-visible { outline: 2px solid var(--gold-soft); }
+.cs-roll:hover { background: rgba(232, 184, 74, .26); transform: rotate(90deg); }
+.cs-roll:active { transform: rotate(180deg) scale(.9); }
+.cs-roll:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
 .cs-roll svg { display: block; width: 100%; height: 100%; }
-.cs-crew::placeholder { color: var(--muted); font-style: italic; }
-.cs-crew:focus { outline: 2px solid var(--gold-soft); outline-offset: 1px; border-color: transparent; }
 
-.cs-count {
-  display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 14px;
-  border-radius: 999px; background: rgba(7, 11, 23, .55); border: 1px solid rgba(232, 184, 74, .35);
+.cs-count { gap: 3px; }
+.cs-count .cs-tag { margin-right: 9px; }
+.cs-n { position: relative; display: block; cursor: pointer; }
+.cs-n input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
+.cs-n span {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  font: 700 1rem 'Cinzel', serif; color: var(--marble); transition: background .15s, color .15s, transform .15s;
 }
-.cs-count span { font: 600 .8rem 'Cinzel', serif; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-soft); margin-right: 6px; }
-.cs-count button {
-  width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
-  font: 700 1rem 'Cinzel', serif; color: var(--marble); background: transparent;
-  transition: background .15s, color .15s;
+.cs-n:hover span { background: rgba(232, 184, 74, .16); }
+.cs-n input:checked + span {
+  color: var(--ink); background: radial-gradient(circle at 35% 30%, var(--gold-soft), var(--gold) 55%, var(--bronze));
+  box-shadow: 0 0 14px rgba(232, 184, 74, .4);
 }
-.cs-count button:hover { background: rgba(232, 184, 74, .15); }
-.cs-count button.on { background: var(--gold); color: var(--ink); }
-.cs-count button:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+.cs-n input:focus-visible + span { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
 
-/* ---- the cards */
-.cs-cards {
-  width: 100%;
-  display: grid; gap: clamp(12px, 1.8vw, 20px);
-  grid-template-columns: repeat(var(--n, 3), minmax(0, 300px));
-  justify-content: center;
+/* ---- the stage: one spot per player, left to right as they stand */
+.cs-stage { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.cs-spots {
+  display: flex; justify-content: center; gap: var(--cs-gap);
+  width: min(100%, max(330px, calc(var(--n) * 272px + (var(--n) - 1) * var(--cs-gap))));
 }
+/* DOM order is plinth, then cards (so Tab lands on the name first); drawn the other way up */
+.cs-spot {
+  flex: var(--k) 1 0; min-width: 0; display: flex; flex-direction: column-reverse; gap: 7px;
+  animation: cs-rise .4s ease backwards;
+}
+.cs-roles { flex: 1; display: flex; gap: 7px; min-width: 0; }
+
+/* a character: clay medallion with the mask, ringed in the colour of whoever plays it */
 .cs-card {
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 18px 18px 16px; border-radius: 14px;
-  background: linear-gradient(180deg, rgba(30, 47, 82, .72), rgba(10, 16, 32, .82));
-  border: 1px solid rgba(232, 184, 74, .25); border-top: 4px solid var(--pc);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
-  animation: cs-rise .4s ease both;
+  position: relative; flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: clamp(12px, 2.4vh, 20px) 16px clamp(10px, 1.8vh, 16px);
+  border-radius: 14px 14px 6px 6px;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, color-mix(in srgb, var(--pc) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(30, 47, 82, .78), rgba(10, 16, 32, .88));
+  border: 1px solid color-mix(in srgb, var(--pc) 38%, rgba(232, 184, 74, .12));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: transform .2s ease, border-color .2s, box-shadow .2s;
+  animation: cs-drop .42s cubic-bezier(.2, .9, .3, 1.2) backwards; animation-delay: calc(var(--i, 0) * 55ms);
 }
-.cs-card:nth-child(2) { animation-delay: .05s; }
-.cs-card:nth-child(3) { animation-delay: .1s; }
-.cs-card:focus-within { border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc), 0 10px 26px rgba(0, 0, 0, .35); }
+.cs-card:hover { transform: translateY(-3px); border-color: var(--pc); box-shadow: 0 16px 30px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.cs-card:focus-within { border-color: var(--pc); }
 
-.cs-card-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.cs-mask { width: 46px; height: 46px; flex: none; color: var(--pc); }
-.cs-char { display: flex; flex-direction: column; min-width: 0; }
-.cs-char strong { font: 700 1.2rem 'Cinzel', serif; color: var(--marble); line-height: 1.2; }
-.cs-char small {
-  color: var(--muted); font-size: .9rem; line-height: 1.3;
+.cs-medal {
+  --cs-cut: #d9774a;
+  display: grid; place-items: center; flex: none;
+  width: clamp(52px, 10.5vh, 84px); height: clamp(52px, 10.5vh, 84px); border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #ee9a6b, var(--clay) 52%, var(--clay-dark));
+  box-shadow: 0 0 0 2px var(--ink), 0 0 0 4.5px var(--pc), 0 8px 18px rgba(0, 0, 0, .5);
+  transition: transform .3s cubic-bezier(.3, 1.5, .5, 1);
+}
+.cs-card:hover .cs-medal { transform: rotate(-5deg) scale(1.05); }
+.cs-mask { width: 68%; height: 68%; color: var(--ink); }
+.cs-char {
+  margin: clamp(8px, 1.6vh, 14px) 0 2px; font: 700 clamp(1.05rem, 2.7vh, 1.3rem)/1.15 'Cinzel', serif;
+  color: var(--marble); overflow-wrap: anywhere;
+}
+.cs-desc {
+  margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.3;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.cs-lines {
+  margin-top: auto; padding-top: clamp(6px, 1.2vh, 10px);
+  font: 600 .66rem 'Cinzel', serif; letter-spacing: .18em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--pc) 75%, var(--marble));
+}
 
-.cs-player { display: flex; align-items: center; gap: 8px; margin-top: auto; min-width: 0; }
+/* hand the part to the neighbour on that side */
+.cs-move {
+  position: absolute; top: 10px; width: 30px; height: 30px; padding: 7px; border-radius: 50%; cursor: pointer;
+  color: var(--pc); background: rgba(7, 11, 23, .55); border: 1px solid color-mix(in srgb, var(--pc) 45%, transparent);
+  opacity: .7; transition: opacity .15s, background .15s, color .15s, transform .15s;
+}
+.cs-move.left { left: 10px; }
+.cs-move.right { right: 10px; }
+.cs-move svg { display: block; width: 100%; height: 100%; }
+.cs-card:hover .cs-move { opacity: 1; }
+.cs-move:hover, .cs-move:focus-visible { opacity: 1; background: var(--pc); color: var(--ink); }
+.cs-move.left:hover { transform: translateX(-3px); }
+.cs-move.right:hover { transform: translateX(3px); }
+.cs-move:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
+
+/* the player: number + name, under everything they play */
+.cs-plinth {
+  position: relative; display: flex; align-items: center; gap: 4px; padding: 5px 14px 5px 5px;
+  border-radius: 6px 6px 14px 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 24%, #0b1224), color-mix(in srgb, var(--pc) 10%, #070b17));
+  border: 1px solid color-mix(in srgb, var(--pc) 60%, transparent);
+  transition: box-shadow .15s, border-color .15s;
+}
+.cs-plinth:focus-within { border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc), 0 0 20px color-mix(in srgb, var(--pc) 30%, transparent); }
 .cs-num {
-  width: 34px; height: 34px; flex: none; border-radius: 50%; display: grid; place-items: center;
-  background: var(--pc); color: var(--ink); font: 700 1rem 'Cinzel', serif;
+  width: 36px; height: 36px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--pc) 60%, #fff), var(--pc) 60%);
+  color: var(--ink); font: 700 1.05rem 'Cinzel', serif; box-shadow: inset 0 0 0 2px rgba(27, 18, 12, .28);
 }
-.cs-pick {
-  flex: none; width: auto; padding: 7px 8px; border-radius: 10px; cursor: pointer;
-  background: var(--pc); color: var(--ink); border: 0; font: 700 .85rem 'Cinzel', serif;
-}
-.cs-pick:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 2px; }
 .cs-name {
-  flex: 1; min-width: 0; padding: 8px 10px; border-radius: 10px;
-  background: rgba(7, 11, 23, .6); border: 1px solid color-mix(in srgb, var(--pc) 55%, transparent);
-  color: var(--marble); font: 600 1.05rem 'EB Garamond', serif;
+  flex: 1; min-width: 0; width: auto; padding: 5px 8px 4px; border: 0; border-radius: 8px 8px 0 0; background: none;
+  /* a dotted rule: this is a line to write on */
+  border-bottom: 1px dashed color-mix(in srgb, var(--pc) 50%, transparent);
+  color: var(--marble); font: 600 1.1rem 'EB Garamond', serif; text-overflow: ellipsis;
 }
-.cs-name::placeholder { color: color-mix(in srgb, var(--pc) 70%, var(--muted)); font-weight: 400; font-style: italic; }
-.cs-name:focus { outline: 2px solid var(--pc); outline-offset: 1px; border-color: transparent; }
-.cs-also { flex: 1; color: var(--pc); font-style: italic; padding: 8px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* ---- standing order */
-/* a floor plan: the camera above, each player's spot before it, in card order */
-.cs-floor { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.cs-floor-cam { width: 46px; height: auto; color: var(--muted); }
-.cs-floor-row {
-  display: flex; justify-content: center; gap: clamp(18px, 4vw, 56px); padding: 8px 22px 0;
-  border-top: 2px dashed rgba(169, 179, 201, .3); border-radius: 50% 50% 0 0 / 14px 14px 0 0;
+.cs-name:hover { background-color: rgba(7, 11, 23, .35); }
+.cs-name:focus { outline: none; background-color: rgba(7, 11, 23, .5); border-bottom-color: var(--pc); border-bottom-style: solid; }
+.cs-name::placeholder { color: color-mix(in srgb, var(--pc) 62%, var(--muted)); font-weight: 400; font-style: italic; }
+/* pin from the plinth down to the stage edge */
+.cs-plinth::after {
+  content: ''; position: absolute; left: 50%; top: 100%; width: 2px; height: 13px; margin-left: -1px;
+  background: var(--pc); opacity: .8;
 }
-.cs-floor-p { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--pc); font-weight: 600; font-size: .92rem; }
-.cs-floor-p svg { width: 34px; height: auto; fill: var(--pc); }
-.cs-floor-p text { fill: var(--sea-deep); font: 900 15px 'Cinzel', serif; }
+.cs-plinth::before {
+  content: ''; position: absolute; left: 50%; top: calc(100% + 9px); width: 10px; height: 10px; margin-left: -5px;
+  border-radius: 50%; background: var(--pc); box-shadow: 0 0 0 3px var(--sea-deep); z-index: 1;
+}
 
-/* ---- actions */
-.cs-actions { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.cs-actions .btn.big { min-width: 220px; }
-.cs-warn { margin: -6px 0 0; color: var(--bad); font-size: .92rem; }
+/* stage edge, and the camera everyone faces */
+.cs-floor {
+  width: min(100%, max(330px, calc(var(--n) * 272px + (var(--n) - 1) * var(--cs-gap)))); margin-top: 13px; padding-top: 9px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--gold-line) top / 100% 2px no-repeat;
+  font: 600 .66rem 'Cinzel', serif; letter-spacing: .22em; text-transform: uppercase; color: var(--muted);
+}
+.cs-cam { width: 30px; height: auto; }
 
-@keyframes cs-rise { from { opacity: 0; transform: translateY(8px); } }
+/* ---- the one thing to press */
+.cs-actions { position: relative; display: flex; align-items: center; justify-content: center; }
+.cs-go { min-width: 250px; }
+.cs-go:focus-visible { outline: 2px solid var(--gold-soft); outline-offset: 4px; }
+.cs-key {
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 30px; height: 26px; border-radius: 6px;
+  font: 600 .9rem system-ui, sans-serif; color: var(--muted);
+  border: 1px solid rgba(169, 179, 201, .4); border-bottom-width: 3px; background: rgba(7, 11, 23, .5);
+}
+
+/* transform only: nothing is ever left invisible if an animation stalls */
+@keyframes cs-rise { from { transform: translateY(10px); } }
+@keyframes cs-drop { from { transform: translateY(-12px) scale(.96); } }
+@keyframes cs-roll-in { from { transform: translateY(-7px); opacity: .3; } }
+
+/* a single performer: no order to stand in */
+.cs-spot:only-child .cs-plinth::before, .cs-spot:only-child .cs-plinth::after { display: none; }
 
 /* short laptop screens */
-@media (max-height: 700px) {
-  .cs { gap: 12px; padding-bottom: 2vh; }
-  .cs-card { padding: 14px 14px 12px; gap: 10px; }
-  .cs-sub { font-size: 1rem; }
+@media (max-height: 740px) {
+  .cs-desc { font-size: .88rem; }
+  .cs-pill { height: 40px; }
+  .cs-roll, .cs-n span { width: 30px; height: 30px; }
+  .cs-n span { font-size: .92rem; }
+  .cs .btn.big { padding: 13px 34px; }
 }
 
-/* narrow (fallback) */
+/* narrow: the columns become rows, still in standing order */
 @media (max-width: 760px) {
-  .cs-cards { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
-  .cs-crew, .cs-crew-wrap { width: 100%; }
-  .cs-bar { width: 100%; max-width: 420px; }
+  .cs { justify-content: flex-start; }
+  .cs-top { grid-template-columns: 1fr; gap: 2px; }
+  .cs-top-spacer { display: none; }
+  .cs-head h2 { font-size: 1.5rem; }
+  .cs-bar, .cs-crew-pill { width: 100%; }
+  .cs-crew { flex: 1; width: auto; }
+  .cs-spots { flex-direction: column; width: min(100%, 440px); gap: 14px; }
+  .cs-spot { flex: none; }
+  .cs-roles { flex-direction: column; }
+  .cs-card { flex: none; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; text-align: left; align-items: center; padding: 12px 44px 12px 14px; }
+  .cs-medal { grid-row: 1 / span 3; width: 54px; height: 54px; }
+  .cs-char { margin: 0; align-self: end; }
+  .cs-lines { padding-top: 2px; }
+  .cs-move { top: 8px; }
+  .cs-move.left { left: auto; right: 8px; top: 8px; transform: rotate(90deg); }
+  .cs-move.right { right: 8px; top: auto; bottom: 8px; transform: rotate(90deg); }
+  .cs-move.left:hover, .cs-move.right:hover { transform: rotate(90deg); }
+  .cs-plinth::before, .cs-plinth::after, .cs-floor, .cs-key { display: none; }
+  .cs-go { min-width: 0; width: min(100%, 440px); }
+  .cs-actions { width: 100%; }
 }
+@media (hover: none) { .cs-key { display: none; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .cs-card { animation: none; }
+  .cs, .cs *, .cs *::before, .cs *::after { animation: none !important; transition: none !important; }
 }
