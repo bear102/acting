@@ -2,7 +2,8 @@
 // Base: a painted backdrop (art/generated/landing-sky.webp: starry sky, Olympus storm cloud top-left,
 // islands left, Ithaca with its temple and hearth right, calm sea below a horizon at 63.5%).
 // On top, a few original SVG/CSS layers: god constellations, moon, lightning flash, Cyclops eye,
-// hearth glow, meteors, gulls, the sea swells with the ship, dolphins and a sea serpent.
+// hearth glow, meteors, gulls, the sea swells and dolphins; plus painted (user-generated) layers:
+// the galley, the sea serpent and the foreground running-wave band.
 //
 // PERF: every animated thing is its own element (HTML wrapper or <svg> root) animated with
 // transform/opacity only, so the compositor moves it and nothing is repainted per frame.
@@ -67,7 +68,6 @@ const waveTile = (fill, crest, amp, crestOpacity = 0.55) => {
 const SEA = [
   { cls: 'lp-sea-far', bg: waveTile('rgba(40,30,70,.18)', '#a99ad6', 4, 0.28) },
   { cls: 'lp-sea-mid', bg: waveTile('#17142e', '#9a8cc8', 9) },
-  { cls: 'lp-sea-near', bg: waveTile('#0b0918', '#e8b84a', 12) },
 ]
 
 // Shooting stars: start point (% of viewport), when in the shared 16s cycle each falls.
@@ -81,7 +81,6 @@ const GLINTS = [[8, 10, 0.4], [21, 22, 2.9], [33, 8, 1.6], [47, 18, 4.1], [62, 1
 
 // [pupil element, eye it sits in, max pupil travel x, y (px)] for the eyes that follow the cursor
 const EYES = [
-  ['.lp-sail-pupil', '.lp-sail-eye', 9, 3.5],
   ['.lp-cy-pupil', '.lp-cy-eye', 0, 0], // travel derived from the eye's size below
 ]
 
@@ -89,7 +88,7 @@ export default function LandingScene() {
   const root = useRef(null)
 
   // Mouse parallax: lerp toward the pointer, write --px/--py, stop when settled.
-  // The same pointer steers the two eyes (Athena's on the sail, the Cyclops's on the island).
+  // The same pointer steers the Cyclops's eye on the island.
   useEffect(() => {
     const el = root.current
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -134,13 +133,10 @@ export default function LandingScene() {
       if (!raf) raf = requestAnimationFrame(step)
     }
     window.addEventListener('pointermove', onMove, { passive: true })
-    // The ship keeps sailing under a resting cursor, so re-aim now and then even without movement
-    const keepAiming = setInterval(() => { if (!document.hidden) aim() }, 400)
     return () => {
       window.removeEventListener('pointermove', onMove)
       document.removeEventListener('visibilitychange', onVis)
       cancelAnimationFrame(raf)
-      clearInterval(keepAiming)
     }
   }, [])
 
@@ -213,54 +209,24 @@ export default function LandingScene() {
           {GLINTS.map(([x, y, d], i) => <i key={i} style={{ left: `${x}%`, top: `${y}%`, '--d': `${d}s` }} />)}
         </div>
         <div className="lp-moonpath">{Array.from({ length: 7 }, (_, i) => <i key={i} style={{ '--i': i }} />)}</div>
-        <div className="lp-ship-lane">
-          <div className="lp-ship-bob"><Galley /></div>
-        </div>
         <div className="lp-dolphins">
           <div className="lp-dolphin" style={{ '--i': 0 }}><Dolphin /></div>
           <div className="lp-dolphin" style={{ '--i': 1 }}><Dolphin /></div>
         </div>
         <div className={`lp-wave ${SEA[1].cls}`} style={{ backgroundImage: SEA[1].bg }} />
-        <div className="lp-serpent"><Serpent /></div>
-        <div className={`lp-wave ${SEA[2].cls}`} style={{ backgroundImage: SEA[2].bg }} />
+        <div className="lp-ship-lane">
+          <div className="lp-ship-bob">
+            {/* Painted black-figure galley (user-generated art); the whole image bobs as one layer */}
+            <img className="lp-ship-img" src="/art/generated/landing-ship.webp" width="931" height="640" alt="" decoding="async" draggable="false" />
+          </div>
+        </div>
+        {/* Painted serpent rises out of a clipped window whose bottom edge is the waterline */}
+        <div className="lp-serpent">
+          <img className="lp-serpent-img" src="/art/generated/landing-serpent.webp" width="483" height="224" alt="" decoding="async" loading="lazy" draggable="false" />
+        </div>
+        {/* Painted Greek running-wave band in the foreground (two copies drift as one layer) */}
+        <div className="lp-wave lp-sea-near lp-sea-painted" />
       </div>
-    </div>
-  )
-}
-
-// Black-figure galley. Three stacked <svg> roots so the sail and the oars can move as whole
-// layers (composited) while the hull stays still.
-function Galley() {
-  return (
-    <div className="lp-ship">
-      <svg className="lp-ship-oars" viewBox="0 0 260 190">
-        {[64, 86, 108, 130, 152, 174, 196].map((x) => <rect key={x} x={x} y="148" width="3" height="26" fill="#0b0f1c" />)}
-      </svg>
-      <svg className="lp-ship-hull" viewBox="0 0 260 190">
-        {/* faint moonlit rim so the black-figure hull reads against the dark water */}
-        <g fill="#0b0f1c" stroke="#c9bdf0" strokeOpacity=".45" strokeWidth="1.6" strokeLinejoin="round">
-          <rect x="127" y="10" width="5" height="122" />
-          <path d="M14 128 Q30 122 44 132 L206 132 Q226 130 242 116 L248 120 Q238 142 214 152 L56 152 Q30 150 14 128 Z" />
-          <path d="M14 128 Q2 108 18 96 Q28 90 32 100 Q22 106 26 118 Z" />
-          <path d="M242 116 L256 136 L238 138 Z" />
-        </g>
-        <path d="M128 12 L128 4 L150 9 L128 14 Z" fill="#e8b84a" />
-        <path d="M48 140 H210" stroke="#e8b84a" strokeWidth="2" opacity=".75" />
-        <circle cx="222" cy="138" r="3.5" fill="#e8b84a" />
-        <circle cx="20" cy="92" r="13" fill="#ff9a3c" opacity=".18" />
-        <circle cx="20" cy="92" r="3" fill="#ffcf7a" />
-      </svg>
-      <svg className="lp-ship-sail" viewBox="0 0 260 190">
-        <path d="M72 26 Q130 14 188 26 Q196 64 184 104 Q130 94 76 104 Q64 64 72 26 Z" fill="#c8693c" />
-        <path d="M72 26 Q130 14 188 26" fill="none" stroke="#0b0f1c" strokeWidth="4" />
-        <path d="M80 48 Q130 40 182 48 M78 70 Q130 62 184 70 M78 90 Q130 82 184 90" stroke="#8f3f1f" strokeWidth="2" fill="none" opacity=".6" />
-        {/* painted eye of Athena on the sail */}
-        <ellipse className="lp-sail-eye" cx="130" cy="60" rx="18" ry="11" fill="#f3e3c2" />
-        <g className="lp-sail-pupil">
-          <circle cx="130" cy="60" r="7" fill="#0b0f1c" />
-          <circle cx="132" cy="58" r="2" fill="#f3e3c2" />
-        </g>
-      </svg>
     </div>
   )
 }
@@ -271,20 +237,6 @@ function Dolphin() {
       <path d="M2 20 Q18 2 40 8 Q52 10 58 18 Q50 15 44 16 Q30 18 20 24 Q12 28 2 20 Z" />
       <path d="M27 8 L33 0 L37 9 Z" />
       <path d="M3 20 L-6 12 L-2 21 L-7 28 Z" />
-    </svg>
-  )
-}
-
-// Coils of a sea serpent breaking the surface.
-function Serpent() {
-  return (
-    <svg className="lp-serpent-svg" viewBox="0 0 320 130">
-      <g fill="#0d0b1e" stroke="#9a8cc8" strokeOpacity=".35" strokeWidth="2">
-        <path d="M10 130 Q40 40 80 130 Z" />
-        <path d="M100 130 Q135 30 170 130 Z" />
-        <path d="M200 130 Q215 70 236 46 Q258 22 284 34 Q300 42 294 56 Q280 48 266 54 Q250 64 246 130 Z" />
-      </g>
-      <circle cx="281" cy="40" r="3" fill="#e8b84a" />
     </svg>
   )
 }
