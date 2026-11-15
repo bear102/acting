@@ -307,13 +307,15 @@ body.stage-live .bd-torch { display: none; }
    (1376 - 217) / 1376 = 84.2% of the cell width and the arch sits above the caption, never on it.
    Framed box = 1.187 x film width wide, 0.754 x film width tall -> aspect 1.574.
    No filter/shadow here on purpose: a filter on the video's ancestor costs a repaint per frame. */
-/* Width shares 64 / 36 (film is the star: players imitate it; was 56 / 44). The
-   camera gets the rest; it only needs to show the players clearly. */
-.sg-cell-film {
-  container-type: inline-size;
-  width: min(calc((100cqw - var(--gap)) * .64), calc(100cqh * 1.574));
+/* Film and camera pictures the same size, side by side. --v is the width of each 16:9 picture:
+   the film cell is the picture plus the painted frame (picture = 84.2% of the cell, so cell = 1.1876 v),
+   the camera cell is the picture plus its rings. Limited by the row width and by the row height
+   (framed film box aspect 1.574, camera box 16:9 + rings). */
+.sg-duo .sg-cell-film, .sg-duo .sg-cell-cam {
+  --v: min(calc((100cqw - var(--gap) - 2 * var(--ring)) / 2.1876), calc(100cqh * 1.574 / 1.1876), calc((100cqh - 2 * var(--ring)) * 16 / 9));
 }
-.sg-duo .sg-cell-cam { width: min(calc((100cqw - var(--gap)) * .36 - 2 * var(--ring)), calc((100cqh - 2 * var(--ring)) * 16 / 9)); }
+.sg-cell-film { container-type: inline-size; width: calc(var(--v) * 1.1876); }
+.sg-duo .sg-cell-cam { width: var(--v); }
 .sg-film {
   gap: 0;
   border-style: solid;
