@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+﻿import { lazy, Suspense, useEffect, useState } from 'react'
 import { api } from './api.js'
 import { rollCrewName } from './crewNames.js'
 import Home from './screens/Home.jsx'
@@ -14,6 +14,7 @@ import Judging from './screens/Judging.jsx'
 import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
 import Backdrop from './ui/Backdrop.jsx'
+import Journey from './ui/Journey.jsx'
 import { Trident } from './ui/Art.jsx'
 import OdysseyFrame from './theme/OdysseyFrame.jsx'
 
@@ -28,10 +29,11 @@ export default function App() {
   const [hallFrom, setHallFrom] = useState('home') // 'home' | 'verdict': where the Hall's back link returns to
   const [lastTake, setLastTake] = useState(null) // the take being judged, kept so a failed upload can be resent
 
-  // Dev only: /?preview=verdict (or =judging) opens that screen on a canned take, no camera or backend needed.
+  // Dev only: /?preview=<screen> (scenes, team, rehearse, stage, judging, verdict) opens that screen on a canned
+  // take, skipping the screens before it.
   useEffect(() => {
     const preview = new URLSearchParams(location.search).get('preview')
-    if (!import.meta.env.DEV || (preview !== 'verdict' && preview !== 'judging')) return
+    if (!import.meta.env.DEV || !['scenes', 'team', 'rehearse', 'stage', 'judging', 'verdict'].includes(preview)) return
     import('./dev/mockVerdict.js').then((m) => {
       setScene(m.scene)
       setTeam(m.team)
@@ -83,6 +85,11 @@ export default function App() {
     <OdysseyFrame variant={screen === 'stage' ? 'thin' : 'full'}>
     <Backdrop />
     <div className={`app screen-${screen}`}>
+      {/* Where you are in the game. Finished steps are links back; judging shows the last step pending.
+          Not on the stage itself: that screen is sized to the pixel and must stay uncluttered. */}
+      {screen === 'judging'
+        ? <div className="jy-wrap"><Journey at="verdict" /></div>
+        : screen !== 'stage' && <Journey at={screen} onGo={setScreen} />}
       {screen === 'home' && <Home onStart={() => setScreen('scenes')} onHall={() => { setHallFrom('home'); setScreen('hall') }} />}
       {screen === 'scenes' && <SceneSelect onPick={pickScene} onBack={() => setScreen('home')} />}
       {screen === 'team' && (
@@ -90,10 +97,10 @@ export default function App() {
           onReady={(t) => { setTeam(t.name === 'Nameless Crew' ? { ...t, name: rollCrewName() } : t); setScreen('rehearse') }} />
       )}
       {screen === 'rehearse' && (
-        <Rehearse scene={scene} team={team} onBack={() => setScreen('team')} onGo={() => setScreen('stage')} />
+        <Rehearse scene={scene} team={team} onGo={() => setScreen('stage')} />
       )}
       {screen === 'stage' && (
-        <Suspense fallback={<div className="panel center"><p className="muted">Raising the curtain…</p></div>}>
+        <Suspense fallback={<div className="panel center"><p className="muted">Raising the curtainâ€¦</p></div>}>
           <Stage scene={scene} team={team} onCancel={() => setScreen('rehearse')} onFinish={submit} />
         </Suspense>
       )}

@@ -513,7 +513,8 @@ export default function Stage({ scene, team, onCancel, onFinish }) {
           </div>
           <div className="sg-band">
             {isLive ? <Prompter scene={scene} team={team} t={t} /> : (
-              <div className="sg-band-idle">The lines will appear here, in time with the film.</div>
+              // before the take, the band previews the opening line (dimmed) instead of describing itself
+              <div className="sg-band-idle"><Prompter scene={scene} team={team} t={-5} /></div>
             )}
           </div>
           {plaques}

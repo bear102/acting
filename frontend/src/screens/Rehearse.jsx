@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { speak } from '../api.js'
 import { PLAYER_COLORS } from '../playerColors.js'
+import { GOD_ART } from '../ui/Art.jsx'
 import { Flame, MaskArt } from './setup/icons.jsx'
 import { EMOTION_ICONS } from './setup/constants.js'
 import './setup/setup.css'
 
-export default function Rehearse({ scene, team, onBack, onGo }) {
+// What the four gods score, as four icons: the idea of the game in place of a paragraph.
+const JUDGED = [['athena', 'Words'], ['apollo', 'Voice'], ['ares', 'Body'], ['aphrodite', 'Face']]
+
+function Judged() {
+  return (
+    <ul className="ss-judged" aria-label="The gods judge your words, voice, body and face">
+      {JUDGED.map(([god, what]) => {
+        const Art = GOD_ART[god]
+        return <li key={god}><Art className="ss-judged-art" />{what}</li>
+      })}
+    </ul>
+  )
+}
+
+export default function Rehearse({ scene, team, onGo }) {
   const [reading, setReading] = useState(-1)
   const [clipTime, setClipTime] = useState(-1)
   const stopRef = useRef(false)
@@ -52,7 +67,6 @@ export default function Rehearse({ scene, team, onBack, onGo }) {
 
   return (
     <div className="panel ss-screen ss-rehearse">
-      <button className="link" onClick={onBack}>← Back to the crew</button>
       <header className="ss-head ss-hearth-head">
         <Flame className="ss-flame" />
         <div>
@@ -83,19 +97,19 @@ export default function Rehearse({ scene, team, onBack, onGo }) {
               <video ref={clipRef} src={`/${scene.video}`} controls playsInline
                 onTimeUpdate={(e) => setClipTime(e.currentTarget.currentTime)}
                 onEnded={() => setClipTime(-1)} />
+              {/* whose line this is, in their colour: "that actor is you" without saying so */}
+              {playing >= 0 && (
+                <span className="ss-speaking" key={playing} style={{ '--pc': PLAYER_COLORS[playerOf(scene.lines[playing].character)] }}>
+                  {team.players[playerOf(scene.lines[playing].character)].name}
+                </span>
+              )}
             </div>
-            <p className="muted small">
-              Study every glance and gesture. On stage this scene plays beside you. Mirror it as it happens.
-            </p>
+            <Judged />
           </figure>
         )}
 
         <div className="ss-papyrus" role="list" aria-label="Script">
-          {!scene.video && (
-            <p className="ss-papyrus-note">
-              Study the scroll. Each line shows the emotion the gods will look for on your face.
-            </p>
-          )}
+          {!scene.video && <Judged />}
           {scene.lines.map((l, i) => {
             const p = playerOf(l.character)
             return (

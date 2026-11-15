@@ -98,3 +98,17 @@
   .ss-head h2 { font-size: 1.35rem; }
   .ss-cta-row { margin-top: 8px; }
 }
+
+/* rehearsal: the four things the gods score, and whose line is playing */
+.ss-judged { list-style: none; display: flex; justify-content: center; gap: clamp(10px, 2vw, 26px); margin: 10px 0 0; padding: 0; }
+.ss-judged li { display: inline-flex; align-items: center; gap: 6px; font: 600 .74rem 'Cinzel', serif; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-soft); }
+.ss-judged-art { width: 22px; height: 22px; color: var(--gold); }
+.ss-papyrus .ss-judged { margin: 0 0 10px; }
+.ss-papyrus .ss-judged li { color: #6b4a1e; }
+.ss-papyrus .ss-judged-art { color: #8f3f1f; }
+.ss-frame-inner { position: relative; }
+.ss-speaking {
+  position: absolute; left: 12px; top: 12px; padding: 4px 14px; border-radius: 999px; pointer-events: none;
+  font: 700 clamp(.9rem, 2.2vh, 1.15rem) 'Cinzel', serif; letter-spacing: .06em; color: var(--sea-deep);
+  background: var(--pc); box-shadow: 0 0 18px var(--pc); animation: rise .25s ease both;
+}

@@ -23,6 +23,15 @@
   background: rgba(7, 11, 23, .55); border: 1px solid rgba(232, 184, 74, .35); color: var(--marble);
   font: 1rem 'EB Garamond', serif;
 }
+.cs-crew-wrap { position: relative; display: flex; }
+.cs-crew-wrap .cs-crew { padding-right: 44px; }
+.cs-roll {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; padding: 6px;
+  border-radius: 50%; border: 0; background: none; color: var(--gold-soft); cursor: pointer; transition: transform .25s, background .15s;
+}
+.cs-roll:hover { background: rgba(232, 184, 74, .18); transform: translateY(-50%) rotate(90deg); }
+.cs-roll:focus-visible { outline: 2px solid var(--gold-soft); }
+.cs-roll svg { display: block; width: 100%; height: 100%; }
 .cs-crew::placeholder { color: var(--muted); font-style: italic; }
 .cs-crew:focus { outline: 2px solid var(--gold-soft); outline-offset: 1px; border-color: transparent; }
 
@@ -88,12 +97,16 @@
 .cs-also { flex: 1; color: var(--pc); font-style: italic; padding: 8px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- standing order */
-.cs-order {
-  margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 10px;
-  color: var(--muted); font-size: .95rem;
+/* a floor plan: the camera above, each player's spot before it, in card order */
+.cs-floor { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cs-floor-cam { width: 46px; height: auto; color: var(--muted); }
+.cs-floor-row {
+  display: flex; justify-content: center; gap: clamp(18px, 4vw, 56px); padding: 8px 22px 0;
+  border-top: 2px dashed rgba(169, 179, 201, .3); border-radius: 50% 50% 0 0 / 14px 14px 0 0;
 }
-.cs-arrow { color: var(--gold); }
-.cs-order-p { color: var(--pc); font-weight: 600; }
+.cs-floor-p { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--pc); font-weight: 600; font-size: .92rem; }
+.cs-floor-p svg { width: 34px; height: auto; fill: var(--pc); }
+.cs-floor-p text { fill: var(--sea-deep); font: 900 15px 'Cinzel', serif; }
 
 /* ---- actions */
 .cs-actions { display: flex; align-items: center; justify-content: center; gap: 14px; }
@@ -112,7 +125,7 @@
 /* narrow (fallback) */
 @media (max-width: 760px) {
   .cs-cards { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
-  .cs-crew { width: 100%; }
+  .cs-crew, .cs-crew-wrap { width: 100%; }
   .cs-bar { width: 100%; max-width: 420px; }
 }
 

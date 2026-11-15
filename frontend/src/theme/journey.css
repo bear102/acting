@@ -1,0 +1,31 @@
+﻿/* Journey strip: five steps, the finished ones gold and clickable, the current one a lit pill. */
+.jy { display: flex; justify-content: center; margin: 0 0 clamp(6px, 1.4vh, 14px); }
+.jy ol { list-style: none; display: flex; align-items: center; margin: 0; padding: 0; }
+.jy li { display: flex; align-items: center; }
+.jy li + li::before {
+  content: ''; width: clamp(12px, 3vw, 44px); height: 2px; margin: 0 4px; border-radius: 1px;
+  background: rgba(169, 179, 201, .25);
+}
+.jy li.done + li::before { background: var(--gold); }
+.jy-step {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid transparent; background: none;
+  font: 600 .72rem 'Cinzel', serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  opacity: .55; transition: background .15s, border-color .15s, opacity .15s;
+}
+.jy-ico { width: 18px; height: 18px; flex: none; }
+.jy .done .jy-step { color: var(--gold-soft); opacity: .95; }
+.jy button.jy-step { cursor: pointer; }
+.jy button.jy-step:hover { border-color: rgba(232, 184, 74, .6); background: rgba(232, 184, 74, .12); }
+.jy .now .jy-step {
+  color: var(--ink); opacity: 1; border-color: var(--gold-soft);
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  box-shadow: 0 0 18px rgba(232, 184, 74, .45);
+}
+/* waiting on the gods: the last step breathes until the verdict lands */
+.jy-wrap .now .jy-step { animation: jy-wait 1.4s ease-in-out infinite; }
+@keyframes jy-wait { 50% { box-shadow: 0 0 30px rgba(232, 184, 74, .9); } }
+@media (max-width: 640px) {
+  .jy li:not(.now) .jy-label { display: none; }
+  .jy-step { padding: 5px 8px; }
+}

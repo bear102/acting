@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PLAYER_COLORS } from '../playerColors.js'
+import { rollCrewName } from '../crewNames.js'
 import { MaskArt } from './setup/icons.jsx'
 import './setup/crew-setup.css'
 
@@ -9,7 +10,8 @@ import './setup/crew-setup.css'
 export default function TeamSetup({ scene, initial, onReady, onBack }) {
   const chars = scene.characters
   const maxPlayers = chars.length
-  const [teamName, setTeamName] = useState(initial?.name && initial.name !== 'Nameless Crew' ? initial.name : '')
+  // Every crew starts with a rolled Homeric name: nothing to explain, keep it, edit it or roll again
+  const [teamName, setTeamName] = useState(() => (initial?.name && initial.name !== 'Nameless Crew' ? initial.name : rollCrewName()))
   const [count, setCount] = useState(Math.min(initial?.players.length || maxPlayers, maxPlayers))
   const [names, setNames] = useState(() => {
     const base = initial?.players.map((p) => (/^Player \d+$/.test(p.name) ? '' : p.name)) || []
@@ -39,8 +41,17 @@ export default function TeamSetup({ scene, initial, onReady, onBack }) {
       </header>
 
       <div className="cs-bar">
-        <input className="cs-crew" value={teamName} maxLength={32} placeholder="Crew name (optional)"
-          aria-label="Crew name" onChange={(e) => setTeamName(e.target.value)} />
+        <div className="cs-crew-wrap">
+          <input className="cs-crew" value={teamName} maxLength={32} placeholder="Crew name"
+            aria-label="Crew name" onChange={(e) => setTeamName(e.target.value)} />
+          <button type="button" className="cs-roll" title="Roll another name" aria-label="Roll another crew name"
+            onClick={() => setTeamName(rollCrewName())}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+              {[[8, 8], [16, 8], [12, 12], [8, 16], [16, 16]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="currentColor" />)}
+            </svg>
+          </button>
+        </div>
         {maxPlayers > 1 && (
           <div className="cs-count" role="radiogroup" aria-label="Number of players">
             <span>Players</span>
@@ -89,19 +100,34 @@ export default function TeamSetup({ scene, initial, onReady, onBack }) {
       </div>
 
       {count > 1 && (
-        <p className="cs-order" aria-label="Standing order">
-          <span className="cs-arrow">←</span> Stand left to right:
-          {players.map((pl, i) => (
-            <span key={i} className="cs-order-p" style={{ '--pc': PLAYER_COLORS[i] }}>{i + 1} {pl.name}</span>
-          ))}
-          <span className="cs-arrow">→</span>
-        </p>
+        <div className="cs-floor" role="img"
+          aria-label={`Stand in front of the camera, left to right: ${players.map((pl) => pl.name).join(', ')}`}>
+          {/* a floor plan instead of a sentence: the camera, and where each player stands before it */}
+          <svg className="cs-floor-cam" viewBox="0 0 64 30" aria-hidden="true">
+            <rect x="12" y="2" width="40" height="22" rx="3" fill="none" stroke="currentColor" strokeWidth="2.4" />
+            <circle cx="32" cy="13" r="5" fill="none" stroke="currentColor" strokeWidth="2.4" />
+            <circle cx="32" cy="13" r="1.6" fill="currentColor" />
+            <path d="M4 28 H60" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+          <div className="cs-floor-row">
+            {players.map((pl, i) => (
+              <span key={i} className="cs-floor-p" style={{ '--pc': PLAYER_COLORS[i] }}>
+                <svg viewBox="0 0 40 44" aria-hidden="true">
+                  <circle cx="20" cy="12" r="9" />
+                  <path d="M3 44 Q3 24 20 24 Q37 24 37 44 Z" />
+                  <text x="20" y="40" textAnchor="middle">{i + 1}</text>
+                </svg>
+                <span>{pl.name}</span>
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="cs-actions">
         <button className="btn ghost" onClick={onBack}>← Back</button>
         <button className="btn big" disabled={!ready}
-          onClick={() => onReady({ name: teamName.trim() || 'Nameless Crew', players, assignments: assign })}>
+          onClick={() => onReady({ name: teamName.trim() || rollCrewName(), players, assignments: assign })}>
           Set sail →
         </button>
       </div>
