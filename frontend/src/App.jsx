@@ -83,6 +83,7 @@ export default function App() {
         <Verdict result={result} scene={scene} team={team} snaps={snaps}
           onRetry={() => setScreen('stage')}
           onNew={() => setScreen('scenes')}
+          onHome={() => setScreen('home')}
           onHall={() => setScreen('hall')} />
       )}
       {screen === 'hall' && <Leaderboard onBack={() => setScreen('home')} highlight={result} />}
