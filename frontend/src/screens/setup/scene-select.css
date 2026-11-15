@@ -26,7 +26,7 @@
 
 /* ------------------------------------------------------------ voyage strip */
 .sx-map-wrap {
-  height: clamp(92px, 19vh, 176px);
+  height: clamp(120px, 26vh, 300px);
   border-radius: 14px; overflow: hidden;
   border: 1px solid rgba(232, 184, 74, .45);
   box-shadow: 0 0 0 4px rgba(7, 11, 23, .6), 0 10px 30px rgba(0, 0, 0, .35);
@@ -41,13 +41,13 @@
 .sx-ship { color: var(--marble); opacity: .9; transform-box: fill-box; transform-origin: center; }
 .sx-ithaca > path { fill: var(--clay-dark, #8f3f1f); stroke: var(--gold-soft); stroke-width: 1.5; }
 .sx-temple { fill: var(--gold-soft); }
-.sx-ithaca text { fill: var(--gold-soft); font: 700 12px 'Cinzel', serif; letter-spacing: .22em; }
+.sx-ithaca text { fill: var(--gold-soft); font: 700 14px 'Cinzel', serif; letter-spacing: .22em; }
 
 .sx-wp { cursor: pointer; outline: none; }
 .sx-wp-isle { fill: var(--clay, #c8693c); stroke: var(--gold-deep, #a8772a); stroke-width: 2; transition: fill .2s; }
 .sx-wp-ring { fill: var(--sea-deep); stroke: var(--gold); stroke-width: 2.5; transition: stroke .2s, stroke-width .2s; }
-.sx-wp-num { fill: var(--gold-soft); font: 700 14px 'Cinzel', serif; pointer-events: none; }
-.sx-wp-star { fill: var(--gold); font-size: 15px; pointer-events: none; }
+.sx-wp-num { fill: var(--gold-soft); font: 700 17px 'Cinzel', serif; pointer-events: none; }
+.sx-wp-star { fill: var(--gold); font-size: 18px; pointer-events: none; }
 .sx-wp:hover .sx-wp-isle, .sx-wp.on .sx-wp-isle { fill: var(--terracotta); }
 .sx-wp:hover .sx-wp-ring, .sx-wp.on .sx-wp-ring { stroke: var(--gold-soft); stroke-width: 4; }
 .sx-wp:focus-visible .sx-wp-ring { stroke: #fff; stroke-width: 4; }
@@ -141,6 +141,10 @@
 }
 
 /* ------------------------------------------------------------ short laptop screens */
+/* short screens: the chart gives its height back so the cards stay above the fold */
+@media (max-height: 780px) {
+  .sx-map-wrap { height: clamp(92px, 19vh, 176px); }
+}
 @media (max-height: 700px) {
   .sx { gap: 10px; }
   .sx-eyebrow { margin-bottom: .5em; font-size: .68rem; }
@@ -152,7 +156,7 @@
   .sx-top { grid-template-columns: 1fr; gap: 8px; }
   .sx-top-spacer { display: none; }
   .sx-title { font-size: 1.6rem; }
-  .sx-map-wrap { height: auto; aspect-ratio: 1000 / 160; } /* whole chart, no cropping */
+  .sx-map-wrap { height: auto; aspect-ratio: 1000 / 240; } /* whole chart, no cropping */
   .sx-art { height: 120px; }
 }
 
