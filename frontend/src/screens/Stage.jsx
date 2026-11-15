@@ -112,7 +112,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
           video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 30, max: 30 } },
           audio: { echoCancellation: true, noiseSuppression: true },
         })
-        if (cancelled) return
+        if (cancelled) { stream.getTracks().forEach((tr) => tr.stop()); return }
         L.stream = stream
         const v = videoRef.current
         v.srcObject = stream
@@ -154,16 +154,18 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
       const tg = e.target
       if (tg?.isContentEditable || tg?.closest?.('input, textarea, select, [contenteditable]')) return
       const key = e.key
-      const ph = phaseRef.current
+      const ph = L.phase // set synchronously by setPhase, unlike React state
       if (key === 'd' || key === 'D') {
         L.debug = !L.debug
         L.dirty = true
       } else if ((key === ' ' || key === 'Enter') && ph === 'ready') {
-        if (tg?.closest?.('button, a, [role="button"], [role="switch"]')) return // let a focused control act natively
+        // let a control reached by keyboard act natively; after a mouse click (Fullscreen, Pauses) focus
+        // lingers on it but Space should still mean Action!
+        if (tg?.closest?.('button, a, [role="button"], [role="switch"]')?.matches(':focus-visible')) return
         e.preventDefault()
         beginRef.current()
       } else if ((key === 'r' || key === 'R') && (ph === 'countdown' || ph === 'live')) {
-        restartRef.current?.()
+        restartTake()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -399,7 +401,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
       clearTimeout(L.goTimer)
       // leaving or restarting mid-take must not leave the app's sound muted (a restart remounts
       // straight back onto the stage, so the sfx module's own leave-the-stage reset never fires)
-      if (L.recording) setRecording(false)
+      setRecording(false) // harmless when not recording; also covers a take that failed to start
       L.recording = false
       // 'paused' too: the stage can be left in the middle of a shot-change hold
       try { if (L.recorder && L.recorder.state !== 'inactive') L.recorder.stop() } catch { /* already stopped */ }
@@ -441,6 +443,11 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
   phaseRef.current = phase
   const restartRef = useRef(onRestart)
   restartRef.current = onRestart
+  // Discard the take and start over; never once the take is being sent (that upload must finish)
+  function restartTake() {
+    if (live.current.phase === 'sending') return
+    restartRef.current?.()
+  }
 
   function startRecording() {
     setRecording(true) // silence everything before the mic starts (no sound may bleed into the take)
@@ -531,6 +538,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     ])
     const video = recorded && recorded.size > 1000 ? recorded : null
     setRecording(false)
+    if (L.unmounted) return // restarted or left mid-finish: discard
     play('cut', { allowOnStage: true })
     if (L.snaps.length === 0) L.snapshot(L.lastT)
     // Keep frames and their times paired even if a toBlob() failed
@@ -540,6 +548,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
     blobs.forEach((b, k) => { if (b) { frames.push(b); snapshotTimes.push(L.snapTimes[k]) } })
     // Give the speech recognizer a moment to flush its last result
     await new Promise((r) => setTimeout(r, 600))
+    if (L.unmounted) return
     onFinish({
       meta: {
         scene_id: scene.id,
@@ -674,7 +683,7 @@ function StageInner({ scene, team, onCancel, onFinish, onRestart }) {
             </button>
           )}
           {(phase === 'countdown' || isLive) && (
-            <button type="button" className="btn ghost sg-small-btn" onClick={onRestart}
+            <button type="button" className="btn ghost sg-small-btn" onClick={restartTake}
               title="Discard this take and start over (R)">Restart</button>
           )}
           {isLive ? (

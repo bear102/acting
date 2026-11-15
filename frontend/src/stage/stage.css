@@ -385,5 +385,5 @@ body.stage-live .bd-torch { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .sg-countdown { animation-name: sg-count-fade; }
-  .sg-ready .sg-place.here .sg-place-disc, .sg-plaque.speaking, .sg-hold-ring-fg { animation: none; }
+  .sg-ready .sg-place.here .sg-place-disc, .sg-plaque.speaking { animation: none; } /* the hold ring keeps draining: it is the countdown */
 }
