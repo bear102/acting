@@ -105,8 +105,32 @@ def test_build_awards_and_crew():
     assert r["laurels_max"] == 9 and r["streak"] == 3 and r["best"] is not None
     maya, jo = r["crew"]
     assert maya["epithet"] == "the Silver-Tongued" and maya["score"] == 70
-    assert jo["best"] == "words" and jo["domains"]["face"] == 20
+    # both were word-perfect: Maya (first) keeps the words epithet, Jo takes her next-best domain
+    assert jo["best"] == "voice" and jo["epithet"] == "the Lyre-Voiced" and jo["domains"]["face"] == 20
     assert "STRONGEST LINE" in reel.highlights(r)
+
+
+def test_crew_epithets_are_not_shared():
+    def beat(pi, words, voice):
+        return {"player": pi, "scores": {"words": words, "voice": voice, "body": 0, "face": 0}}
+    stars = [{"name": "Al", "characters": ["a"]}, {"name": "Bo", "characters": ["b"]},
+             {"name": "Cy", "characters": ["c"]}, {"name": "Di", "characters": ["d"]}]
+    js = {"ares": {"per_character": {"a": 20, "b": 50, "c": 10, "d": 0}},
+          "aphrodite": {"per_character": {"a": 10, "b": 40, "c": 10, "d": 0}}}
+    # Al, Bo and Cy all peak at words; words is Cy's only qualifying domain, so Cy keeps it and the
+    # others take their next best (Al voice 60, Bo body 50): nobody shares. Di is faint.
+    bs = [beat(0, 90, 60), beat(1, 98, 30), beat(2, 80, 20), beat(3, 10, 10)]
+    al, bo, cy, di = reel.crew(bs, js, stars)
+    assert [c["name"] for c in (al, bo, cy, di)] == ["Al", "Bo", "Cy", "Di"]  # input order kept
+    assert cy["epithet"] == "the Silver-Tongued" and cy["best"] == "words"
+    assert al["epithet"] == "the Lyre-Voiced" and al["best"] == "voice"
+    assert bo["epithet"] == "the Bronze-Limbed" and bo["best"] == "body"
+    assert di["epithet"] == reel.FAINT_EPITHET and di["best"] is None
+    # When sharing is unavoidable (both only qualify for words) the stronger keeps it and both share
+    two = reel.crew([beat(0, 90, 0), beat(1, 98, 0)], {"ares": {"per_character": {}}, "aphrodite": {"per_character": {}}},
+                    stars[:2])
+    assert [c["epithet"] for c in two] == ["the Silver-Tongued", "the Silver-Tongued"]
+    assert al["domains"] == {"words": 90, "voice": 60, "body": 20, "face": 10}
 
 
 def test_silent_take_gets_no_praise():
@@ -135,6 +159,16 @@ def test_hall_rival_is_never_your_own_take():
     assert reel.hall_place(rows, 600) == {"place": 4, "of": 4, "rival": {"team_name": " me ", "kleos": 650, "gap": 50}}
     assert reel.hall_place(mine, 600)["rival"] == {"team_name": "Me", "kleos": 700, "gap": 100}
 
+
+def test_crew_avoids_a_shared_epithet_when_possible():
+    # A is strong in words AND voice; B only in words. Greedy strongest-first would give both words;
+    # the avoidable duplicate is resolved by giving A voice and B words.
+    stars = [{"name": "A", "characters": ["ody"], "score": 90}, {"name": "B", "characters": ["cyc"], "score": 80}]
+    bs = [{"player": 0, "scores": {"words": 99, "voice": 90}}, {"player": 1, "scores": {"words": 98, "voice": 10}}]
+    judges = {"ares": {"per_character": {}}, "aphrodite": {"per_character": {}}}
+    a, b = reel.crew(bs, judges, stars)
+    assert (a["best"], b["best"]) == ("voice", "words")
+    assert a["epithet"] != b["epithet"] and b["epithet"] == "the Silver-Tongued"
 
 if __name__ == "__main__":  # the venv has no pytest: run as a plain script like the other harnesses
     failed = 0
