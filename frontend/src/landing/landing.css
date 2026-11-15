@@ -128,7 +128,12 @@
 @keyframes lp-flap { 50% { transform: scaleY(.3); } }
 
 /* ---------------- sea: starts at the painted horizon */
-.lp-sea { inset: auto 0 0 0; top: var(--hz); }
+.lp-sea {
+  inset: auto 0 0 0; top: var(--hz);
+  /* painted foreground band height, and the galley size (big but clear of the buttons/icons) */
+  --wh: min(12vh, 110px);
+  --sw: clamp(140px, min(23vw, 36vh), 420px);
+}
 .lp-wave {
   position: absolute; left: 0; bottom: 0; width: 200%; background-repeat: repeat-x; background-size: 400px 100%;
   animation: lp-drift linear infinite;
@@ -136,6 +141,16 @@
 .lp-sea-far  { height: 100%; animation-duration: 70s; }
 .lp-sea-mid  { height: 44%; animation-duration: 38s; animation-direction: reverse; }
 .lp-sea-near { height: 22%; animation-duration: 24s; }
+/* Painted Greek running-wave band (art/generated/landing-waves.webp, 1182x346). One tile is
+   --wh * 3.416 wide; the strip drifts by exactly two tiles so the loop is seamless. */
+.lp-sea-painted {
+  height: var(--wh); width: calc(100% + var(--wh) * 6.84 + 4px);
+  background-image: url('/art/generated/landing-waves.webp');
+  background-size: calc(var(--wh) * 3.416) 100%; background-position: 0 0;
+  animation: lp-drift-painted 70s linear infinite;
+  filter: brightness(.82) saturate(.92); /* static: rasterized once with the layer */
+}
+@keyframes lp-drift-painted { to { transform: translate3d(calc(var(--wh) * -6.832), 0, 0); } }
 /* The tile is 400px wide, so shifting by exactly one tile multiple keeps it seamless */
 @keyframes lp-drift { to { transform: translate3d(-1200px, 0, 0); } }
 
@@ -171,34 +186,34 @@
   91%, 100% { opacity: 0; transform: rotate(62deg); }
 }
 
-/* ship: crosses the sea slowly (lane), bobs on the swell; sail and oars are their own layers */
+/* ship: crosses the sea slowly (lane) and bobs on the swell. The painted galley is a single
+   image (its foam line is the bottom ~5%), riding in front of the mid swell; the painted
+   foreground band hides its waterline. */
 .lp-ship-lane {
-  /* waterline (hull bottom, ~20% up the ship) rides just below the mid swell's crest */
-  position: absolute; left: 0; bottom: calc(44% - .17 * clamp(150px, 15vw, 230px)); width: clamp(150px, 15vw, 230px);
+  position: absolute; left: 0; bottom: calc(var(--wh) * .6); width: var(--sw);
   animation: lp-cross 95s linear infinite; animation-delay: -38s;
 }
-@keyframes lp-cross { from { transform: translate3d(-260px, 0, 0); } to { transform: translate3d(calc(100vw + 40px), 0, 0); } }
-.lp-ship-bob { animation: lp-bob 5.5s ease-in-out infinite; transform-origin: 50% 90%; }
-@keyframes lp-bob { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(5px) rotate(1.5deg); } }
-.lp-ship { position: relative; width: 100%; aspect-ratio: 260 / 190; }
-.lp-ship svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; display: block; }
-.lp-ship-sail { transform-origin: 50% 30%; animation: lp-billow 4s ease-in-out infinite; }
-@keyframes lp-billow { 50% { transform: scaleX(1.05) scaleY(.98); } }
-/* all oars pull together: the whole oar bank leans fore and aft */
-.lp-ship-oars { transform-origin: 50% 78%; animation: lp-row 2.4s ease-in-out infinite; }
-@keyframes lp-row { 0%, 100% { transform: skewX(-26deg); } 55% { transform: skewX(4deg); } }
-/* sail eye follows the cursor (only changes while the pointer moves) */
-.lp-sail-pupil { transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px)); transition: transform .18s ease-out; }
+@keyframes lp-cross { from { transform: translate3d(calc(var(--sw) * -1.1), 0, 0); } to { transform: translate3d(calc(100vw + 40px), 0, 0); } }
+.lp-ship-bob { animation: lp-bob 5.5s ease-in-out infinite; transform-origin: 50% 92%; will-change: transform; }
+@keyframes lp-bob { 0%, 100% { transform: translateY(0) rotate(-1.4deg); } 50% { transform: translateY(5px) rotate(1.4deg); } }
+.lp-ship-img { display: block; width: 100%; height: auto; user-select: none; filter: drop-shadow(0 0 10px rgba(201, 189, 240, .18)); }
 .lp-tracking .lp-cy-pupil { animation: none; transform: translate(calc(var(--lx, 0) * 1px), calc(var(--ly, 0) * 1px)); transition: transform .18s ease-out; }
 
-/* sea serpent surfaces now and then between the mid and near swells */
-.lp-serpent { position: absolute; left: 13%; bottom: 6%; width: clamp(150px, 16vw, 250px); opacity: 0; animation: lp-serpent 17s ease-in-out infinite 4s; }
-.lp-serpent-svg { width: 100%; display: block; }
+/* sea serpent: a clipped window whose bottom edge is the waterline; the painted serpent rises
+   out of it now and then (transform + opacity on the image only) */
+.lp-serpent {
+  position: absolute; left: 8%; bottom: calc(var(--wh) * .78); width: clamp(170px, 18vw, 320px);
+  aspect-ratio: 483 / 224; overflow: hidden;
+}
+.lp-serpent-img {
+  display: block; width: 100%; height: auto; opacity: 0; transform: translate3d(0, 100%, 0);
+  animation: lp-serpent 26s ease-in-out infinite 6s;
+}
 @keyframes lp-serpent {
-  0%, 55%, 100% { opacity: 0; transform: translate3d(-20px, 70%, 0); }
-  65% { opacity: 1; transform: translate3d(0, 8%, 0); }
-  80% { opacity: 1; transform: translate3d(30px, 4%, 0); }
-  92% { opacity: 0; transform: translate3d(60px, 70%, 0); }
+  0%, 62%, 100% { opacity: 0; transform: translate3d(-8px, 100%, 0); }
+  70% { opacity: 1; transform: translate3d(0, 6%, 0); }
+  84% { opacity: 1; transform: translate3d(14px, 2%, 0); }
+  93% { opacity: 0; transform: translate3d(26px, 100%, 0); }
 }
 
 /* ---------------- paused / reduced motion */
@@ -206,7 +221,7 @@
 @media (prefers-reduced-motion: reduce) {
   .lp-scene *, .lp-scene { animation: none !important; }
   .lp-par { transform: none; }
-  .lp-ship-lane { transform: translate3d(58vw, 0, 0); }
+  .lp-ship-lane { transform: translate3d(56vw, 0, 0); }
   .lp-flash, .lp-serpent, .lp-meteor, .lp-dolphin { opacity: 0; }
   .lp-flock { transform: translate3d(30vw, 0, 0); }
 }
@@ -214,5 +229,6 @@
 /* small screens: drop the extras */
 @media (max-width: 640px) {
   .lp-const text, .lp-moonpath, .lp-glints, .lp-dolphins { display: none; }
+  .lp-sea { --wh: min(7vh, 58px); --sw: clamp(150px, 42vw, 220px); }
   .lp-moon-wrap { top: auto; bottom: 34vh; right: 4vw; width: 16vh; height: 16vh; }
 }
