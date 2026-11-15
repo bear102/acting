@@ -398,3 +398,21 @@ th { color: var(--gold-soft); font-size: .85rem; font-weight: 500; }
   .bd-embers, .flash { display: none; }
   .voyage-ship { left: 40%; }
 }
+
+/* ---------- painted page backdrops (ui/PageBackdrop.jsx) */
+.page-bd { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-color: #0a0710; }
+/* Score page: rosy-fingered dawn over Ithaca. Dark veil over the centre where the kleos sits. */
+.page-bd-dawn {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(7, 9, 20, .62), rgba(7, 9, 20, .25) 58%, rgba(7, 9, 20, .55)),
+    linear-gradient(180deg, rgba(7, 9, 20, .35), rgba(7, 9, 20, 0) 45%, rgba(7, 9, 20, .55)),
+    url('/art/generated/verdict-dawn-ithaca.webp') center 62% / cover no-repeat,
+    #0a0710;
+}
+/* Hall of Heroes: heroes as constellations around the edges */
+.page-bd-stars {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(7, 9, 20, .55), rgba(7, 9, 20, .15) 65%, rgba(7, 9, 20, .4)),
+    url('/art/generated/hall-heroes-stars.webp') center / cover no-repeat,
+    #0a0710;
+}
