@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { Laurel, Meander } from '../ui/Art.jsx'
 
 export default function Leaderboard({ onBack, highlight }) {
   const [rows, setRows] = useState(null)
@@ -10,9 +11,11 @@ export default function Leaderboard({ onBack, highlight }) {
   useEffect(() => { setRows(null); api.leaderboard(sceneId).then(setRows).catch(() => setRows([])) }, [sceneId])
 
   return (
-    <div className="panel narrow">
+    <div className="panel narrow tablet">
       <button className="link" onClick={onBack}>← Back</button>
-      <h2>Hall of Heroes</h2>
+      <p className="eyebrow">Carved in stone forever</p>
+      <h2 className="hall-title"><Laurel className="hall-laurel" />Hall of Heroes</h2>
+      <Meander className="short left" />
       <select value={sceneId} onChange={(e) => setSceneId(e.target.value)}>
         <option value="">All trials</option>
         {scenes.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
@@ -26,7 +29,7 @@ export default function Leaderboard({ onBack, highlight }) {
             {rows.map((r, i) => (
               <tr key={i} className={highlight && r.created_at && highlight.team_name === r.team_name
                 && highlight.kleos === r.kleos ? 'me' : ''}>
-                <td>{i + 1}</td>
+                <td><span className={`place place-${i + 1}`}>{i + 1}</span></td>
                 <td><strong>{r.team_name}</strong>{r.epithet && <div className="muted small">{r.epithet}</div>}</td>
                 <td>{r.scene_title}<div className="muted small">{r.team_size} player{r.team_size > 1 ? 's' : ''}</div></td>
                 <td>{r.rank}</td>

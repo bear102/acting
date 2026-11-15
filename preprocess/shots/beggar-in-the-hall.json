@@ -1,0 +1,7 @@
+[
+  {"start": 0.0,   "end": 2.34,  "character": null},
+  {"start": 2.34,  "end": 4.25,  "character": "penelope"},
+  {"start": 4.25,  "end": 14.22, "character": "antinous"},
+  {"start": 14.22, "end": 16.64, "character": "odysseus"},
+  {"start": 16.64, "end": 19.06, "character": "antinous"}
+]

@@ -8,6 +8,8 @@ import Stage from './screens/Stage.jsx'
 import Judging from './screens/Judging.jsx'
 import Verdict from './screens/Verdict.jsx'
 import Leaderboard from './screens/Leaderboard.jsx'
+import Backdrop from './ui/Backdrop.jsx'
+import { Trident } from './ui/Art.jsx'
 
 // Screen flow: home -> scenes -> team -> rehearse -> stage -> judging -> verdict
 export default function App() {
@@ -36,7 +38,9 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <>
+    <Backdrop />
+    <div className={`app screen-${screen}`}>
       {screen === 'home' && <Home onStart={() => setScreen('scenes')} onHall={() => setScreen('hall')} />}
       {screen === 'scenes' && <SceneSelect onPick={pickScene} onBack={() => setScreen('home')} />}
       {screen === 'team' && (
@@ -51,8 +55,9 @@ export default function App() {
       )}
       {screen === 'judging' && <Judging />}
       {screen === 'stage-error' && (
-        <div className="panel center">
-          <h2>The gods could not hear you</h2>
+        <div className="panel center tablet">
+          <Trident className="err-art" />
+          <h2>Poseidon swallowed your performance</h2>
           <p className="muted">{error}</p>
           <p>Is the backend running on port 8000?</p>
           <button className="btn" onClick={() => setScreen('stage')}>Try the scene again</button>
@@ -66,5 +71,6 @@ export default function App() {
       )}
       {screen === 'hall' && <Leaderboard onBack={() => setScreen('home')} highlight={result} />}
     </div>
+    </>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PLAYER_COLORS } from '../vision.js'
+import { Meander } from '../ui/Art.jsx'
 
 export default function TeamSetup({ scene, initial, onReady, onBack }) {
   const maxPlayers = scene.characters.length
@@ -13,10 +14,12 @@ export default function TeamSetup({ scene, initial, onReady, onBack }) {
   const unused = players.map((_, i) => i).filter((i) => !Object.values(assign).includes(i))
 
   return (
-    <div className="panel narrow">
+    <div className="panel narrow tablet">
       <button className="link" onClick={onBack}>← Back</button>
       <p className="eyebrow">{scene.book}</p>
-      <h2>{scene.title}: assemble your crew</h2>
+      <h2>{scene.title}</h2>
+      <p className="subtitle">Assemble your crew</p>
+      <Meander className="short left" />
 
       <label className="field">
         <span>Crew name</span>
@@ -68,7 +71,7 @@ export default function TeamSetup({ scene, initial, onReady, onBack }) {
 
       <button className="btn big" disabled={unused.length > 0}
         onClick={() => onReady({ name: teamName.trim() || 'Nameless Crew', players, assignments: assign })}>
-        To rehearsal →
+        Set sail for rehearsal →
       </button>
     </div>
   )
