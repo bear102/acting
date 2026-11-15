@@ -19,7 +19,9 @@ Typical workflow (two passes):
   --lines-from-transcript  creates the script from the clip's dialogue (ElevenLabs Scribe if
                            ELEVENLABS_API_KEY is set, otherwise local Whisper small.en); the speaker is
                            guessed from the shot on screen at each line's midpoint. Review it!
-  --retime                 keeps your hand-written lines but snaps their timings to the dialogue.
+  --retime                 keeps your hand-written lines but snaps their timings to the dialogue
+                           (ElevenLabs Forced Alignment when keyed, else transcript matching).
+  --retime-only            only re-time an existing scene against its existing clip; nothing else changes.
   --start/--end            cut a window out of a longer source first.
 
 Output: scenes/media/<id>.mp4 (gitignored) and the scene JSON's `video`, `duration`, `lines` (if
@@ -220,7 +222,7 @@ def transcribe_clip(clip: Path) -> list[dict]:
         print("  using ElevenLabs Scribe")
         with open(clip, "rb") as f:
             r = httpx.post("https://api.elevenlabs.io/v1/speech-to-text", headers={"xi-api-key": key},
-                           data={"model_id": os.getenv("ELEVENLABS_STT_MODEL", "scribe_v1"), "language_code": "en"},
+                           data={"model_id": os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2"), "language_code": "en"},
                            files={"file": (clip.name, f, "video/mp4")}, timeout=300)
         r.raise_for_status()
         return [{"text": w["text"], "start": w.get("start"), "end": w.get("end")}
@@ -242,6 +244,43 @@ def lines_from_transcript(words: list[dict], shots: list[dict], fallback_char: s
                       "emotion": None, "direction": "Watch the shade and match it.",
                       "start": round(seg["start"], 2), "end": round(seg["end"], 2)})
     return lines
+
+
+def align_lines(scene: dict, clip: Path, max_loss: float = 1.0) -> bool:
+    """Snap each script line to the clip with ElevenLabs Forced Alignment (exact per-word times).
+
+    Returns False (timings untouched) when no ElevenLabs key is configured. Space entries are
+    ignored; words with loss > max_loss are not trusted; a line with no confident word keeps its
+    old timing.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(ROOT / ".env")
+    key = os.getenv("ELEVENLABS_API_KEY")
+    if not key:
+        return False
+    import httpx
+
+    text = " ".join(line["text"] for line in scene["lines"])
+    with open(clip, "rb") as f:
+        r = httpx.post("https://api.elevenlabs.io/v1/forced-alignment", headers={"xi-api-key": key},
+                       data={"text": text}, files={"file": (clip.name, f, "video/mp4")}, timeout=300)
+    r.raise_for_status()
+    aligned = [w for w in r.json().get("words", []) if w.get("text", "").strip()]
+    # the response words follow the script order: hand them out line by line
+    i = 0
+    for li, line in enumerate(scene["lines"]):
+        n = len(line["text"].split())
+        mine = [w for w in aligned[i:i + n] if w.get("loss", 0) <= max_loss]
+        i += n
+        if mine:
+            old = (line["start"], line["end"])
+            line["start"] = round(mine[0]["start"], 2)
+            line["end"] = round(mine[-1]["end"], 2)
+            print(f"  line {li + 1}: {old[0]:.2f}-{old[1]:.2f}s -> {line['start']:.2f}-{line['end']:.2f}s")
+        else:
+            print(f"  line {li + 1}: no confident alignment, timing unchanged")
+    return True
 
 
 def retime_lines(scene: dict, words: list[dict]) -> None:
@@ -294,7 +333,7 @@ def load_or_create_scene(args, header: dict | None = None) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scene", required=True, type=Path, help="scene JSON to create or enrich")
-    ap.add_argument("--video", required=True, type=Path, help="source film / clip")
+    ap.add_argument("--video", type=Path, help="source film / clip (not needed with --retime-only)")
     ap.add_argument("--start", type=float, help="clip start in source, seconds")
     ap.add_argument("--end", type=float, help="clip end in source, seconds")
     ap.add_argument("--characters", nargs="+", metavar="ID:NAME", help="add/declare characters")
@@ -305,9 +344,22 @@ def main() -> None:
     ap.add_argument("--shots-file", type=Path, help="JSON list of {start, end, character}")
     ap.add_argument("--lines-from-transcript", action="store_true", help="generate the script from the dialogue")
     ap.add_argument("--retime", action="store_true", help="snap existing lines to the dialogue timing")
+    ap.add_argument("--retime-only", action="store_true",
+                    help="ONLY re-time the existing lines against the existing clip (forced alignment); nothing else changes")
     ap.add_argument("--brighten", action="store_true", help="lift dark footage (gamma/brightness/saturation grade) when cutting the clip")
     args = ap.parse_args()
 
+    if args.retime_only:
+        scene = json.loads(args.scene.read_text(encoding="utf-8"))
+        clip = ROOT / "scenes" / (scene.get("video") or f"media/{scene['id']}.mp4")
+        print(f"re-timing {len(scene['lines'])} lines against {clip.name} (forced alignment)")
+        if not align_lines(scene, clip):
+            sys.exit("--retime-only needs ELEVENLABS_API_KEY (forced alignment).")
+        args.scene.write_text(json.dumps(scene, indent=1), encoding="utf-8")
+        return
+
+    if args.video is None:
+        ap.error("--video is required (unless --retime-only)")
     file_shots, header = read_shots_file(args.shots_file) if args.shots_file else (None, None)
     scene = load_or_create_scene(args, header)
     sid = scene["id"]
@@ -357,7 +409,7 @@ def main() -> None:
             for ln in scene["lines"]:
                 print(f"  [{ln['start']:5.1f}-{ln['end']:5.1f}] {ln['character']:>10}: {ln['text']}")
             print("  ^ speakers are guessed from the shot on screen; fix any reaction shots by hand.")
-        else:
+        elif not align_lines(scene, clip):   # forced alignment when keyed, else transcript matching
             retime_lines(scene, words)
     else:
         print("5/5 (keeping existing lines)")

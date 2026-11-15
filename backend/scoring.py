@@ -278,7 +278,7 @@ def judge_apollo(scene: dict, contours: dict, athena: dict, has_word_times: bool
     if len(speech) < len(energy):
         speech = np.concatenate([speech, np.zeros(len(energy) - len(speech), bool)])
 
-    ref = (scene.get("reference") or {}).get("audio") or {}
+    ref = (scene.get("reference") or {}).get("audio") or scene.get("reference_audio") or {}  # voiced text scenes keep it top-level
     rp, re_ = _arr(ref.get("pitch")), _arr(ref.get("energy"))
     has_ref = len(re_) > 5 and np.nanstd(re_) > 1e-3 and (~np.isnan(rp)).sum() > 10
 

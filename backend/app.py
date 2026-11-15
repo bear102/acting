@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -151,7 +152,8 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     body_task = asyncio.ensure_future(body_and_face())
 
     # --- ears: ElevenLabs Scribe -> local Whisper -> the browser's own speech recognition
-    words = await oracle.transcribe(audio_bytes, audio.filename if audio else "take.webm")
+    words = await oracle.transcribe(audio_bytes, audio.filename if audio else "take.webm",
+                                    keyterms=scene_keyterms(scene))
     stt_source = "elevenlabs"
     if words is None:
         words = await oracle.transcribe_local(pcm)
@@ -233,6 +235,39 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     except Exception as e:  # noqa: BLE001
         log.warning("Could not start take save: %s", e)
     return result
+
+
+_COMMON = {
+    "this", "that", "with", "from", "have", "your", "what", "will", "then", "they", "them", "there",
+    "their", "when", "were", "been", "into", "only", "over", "very", "which", "would", "could",
+    "should", "about", "after", "before", "because", "these", "those", "some", "every", "never",
+    "here", "come", "came", "until", "while", "shall", "upon", "made", "much", "more", "most",
+}
+
+
+def scene_keyterms(scene: dict, limit: int = 100) -> list[str]:
+    """Bias Scribe toward this scene's script: character names, then distinctive words (4+ letters).
+
+    Sanitized to letters/digits/spaces/apostrophes/hyphens, de-duplicated (case-insensitive), capped.
+    """
+    out, seen = [], set()
+
+    def add(term: str) -> None:
+        t = re.sub(r"[^A-Za-z0-9' -]", "", term).strip(" '-")
+        k = t.lower()
+        if t and k not in seen and len(out) < limit:
+            seen.add(k)
+            out.append(t)
+
+    for c in scene.get("characters", []):
+        add(c.get("name", ""))
+        add(c.get("id", "").replace("-", " "))
+    for line in scene.get("lines", []):
+        for w in line.get("text", "").split():
+            w = re.sub(r"[^A-Za-z0-9'-]", "", w).strip("'-")
+            if len(w) >= 4 and w.lower() not in _COMMON:
+                add(w)
+    return out
 
 
 def apply_critic(overall: dict, critic: dict) -> dict:
