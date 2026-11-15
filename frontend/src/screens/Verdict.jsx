@@ -51,9 +51,17 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
         {result.verdict.epithet && <div className="epithet">“{result.team_name}, {result.verdict.epithet}”</div>}
       </div>
 
-      <div className={`zeus ${revealed >= GODS.length ? 'in' : ''}`}>
-        <div className="zeus-head"><Bolt className="zeus-icon" /> The verdict of Zeus</div>
-        <p>{result.verdict.zeus}</p>
+      <div className="verdict-side">
+        <div className={`zeus ${revealed >= GODS.length ? 'in' : ''}`}>
+          <div className="zeus-head"><Bolt className="zeus-icon" /> The verdict of Zeus</div>
+          <p>{result.verdict.zeus}</p>
+        </div>
+        {/* In normal flow right under the verdict: visible without scrolling, never floats over content */}
+        <div className="row center-row verdict-actions">
+          <button className="btn" onClick={onRetry}>↻ Try again</button>
+          <button className="btn ghost" onClick={onNew}>New trial</button>
+          <button className="btn ghost" onClick={onHall}>Hall of Heroes</button>
+        </div>
       </div>
       </div>
 
@@ -124,11 +132,6 @@ export default function Verdict({ result, scene, team, onRetry, onNew, onHall })
         <p className="muted small">Commentary by {result.verdict.source === 'gemini' ? 'Gemini' : 'the house oracle'}.</p>
       </details>
 
-      <div className="row center-row verdict-actions">
-        <button className="btn" onClick={onRetry}>↻ Try again</button>
-        <button className="btn ghost" onClick={onNew}>New trial</button>
-        <button className="btn ghost" onClick={onHall}>Hall of Heroes</button>
-      </div>
     </div>
   )
 }
