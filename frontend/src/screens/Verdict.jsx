@@ -1,3 +1,4 @@
+import PageBackdrop from '../ui/PageBackdrop.jsx'
 import { useCallback, useEffect, useState } from 'react'
 import { PLAYER_COLORS } from '../playerColors.js'
 import { godArt } from '../ui/rankArt.js'
@@ -30,6 +31,7 @@ export default function Verdict({ result, scene, snaps, onRetry, onNew, onHall, 
 
   return (
     <div className="panel verdict vd">
+      <PageBackdrop variant="dawn" />
       <p className="eyebrow center">{result.scene_title} · {result.team_name}</p>
 
       <Voyage voyage={reel.voyage} onArrive={onArrive} />

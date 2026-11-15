@@ -1,3 +1,4 @@
+import PageBackdrop from '../ui/PageBackdrop.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { Laurel } from '../ui/Art.jsx'
@@ -34,6 +35,7 @@ export default function Leaderboard({ onBack, highlight, onRetry }) {
 
   return (
     <div className="panel ol">
+      <PageBackdrop variant="stars" />
       <div className="ol-bar">
         <button className="link" onClick={onBack}>{highlight ? '← Back to your verdict' : '← Back'}</button>
         {onRetry && <button className="btn" onClick={onRetry}>↻ {next ? `Chase ${next.name}` : 'Sail it again'}</button>}
