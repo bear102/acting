@@ -68,3 +68,9 @@
   .ol-title { margin: 4px 0 10px; font-size: clamp(1.4rem, 4vh, 2rem); }
   .ol-table td { padding-top: 6px; padding-bottom: 6px; }
 }
+
+/* Your own row, and the way back to the verdict */
+.ol-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ol-table tr.me td { background: rgba(232, 184, 74, .22); }
+.ol-table tr.me td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+.ol-pinned td { border-top: 2px dashed rgba(232, 184, 74, .5); }
