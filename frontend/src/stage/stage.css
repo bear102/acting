@@ -340,3 +340,5 @@ body.stage-live .bd-torch { display: none; }
 .sg-place.away { opacity: .3; filter: grayscale(.6); transform: scale(.85); transition: opacity .25s, transform .25s; }
 @media (prefers-reduced-motion: reduce) { .sg-hold-count { animation: none; } }
 .sg-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sg-pause-btn { opacity: .75; }
+.sg-pause-btn.on { opacity: 1; border-color: var(--gold); color: var(--gold-soft); }
