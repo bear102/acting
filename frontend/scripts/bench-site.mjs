@@ -12,7 +12,7 @@
 // The API is mocked from scenes/*.json so the backend is not needed.
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -53,7 +53,10 @@ async function mock(page) {
   await page.route('**/api/scenes', (r) => r.fulfill({ json: [...scenes].sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).map(summary) }))
   await page.route(/\/api\/scenes\/[^/?]+$/, (r) => { const id = r.request().url().split('/').pop(); r.fulfill({ json: detail(scenes.find((s) => s.id === id)) }) })
   await page.route('**/api/leaderboard**', (r) => r.fulfill({ json: Array.from({ length: 12 }, (_, i) => ({ team_name: `Crew ${i}`, epithet: 'x', scene_title: film.title, scene_id: film.id, team_size: 2, rank: 'Hero of Troy', kleos: 900 - i * 40 })) }))
-  await page.route('**/api/perform', async (r) => { await new Promise((res) => setTimeout(res, 2500)); r.fulfill({ json: fakeResult(film) }) })
+  // A real-shaped result (verdict reel etc.) from the dev mock, so the verdict screen renders as in the game
+  const mockMod = await import(pathToFileURL(path.join(HERE, '..', 'src', 'dev', 'mockVerdict.js')).href).catch(() => null)
+  const realResult = mockMod?.result?.scene_id === film.id ? mockMod.result : fakeResult(film)
+  await page.route('**/api/perform', async (r) => { await new Promise((res) => setTimeout(res, 2500)); r.fulfill({ json: realResult }) })
   await page.route('**/media/**', (r) => {
     const f = path.join(REPO, 'scenes', 'media', r.request().url().split('/media/')[1].split('?')[0])
     return fs.existsSync(f) ? r.fulfill({ path: f, contentType: 'video/mp4' }) : r.fulfill({ status: 404 })
@@ -145,6 +148,7 @@ async function idle(page, cdp, name, { keepMouse = false } = {}) {
   }
   console.log(Object.values(row).map((v) => String(v).padEnd(10)).join(''))
   // Running infinite animations that the compositor can't take (they cost main-thread work every frame)
+  row.running = await page.evaluate(() => { const all = document.getAnimations(); const by = (s) => all.filter((a) => a.playState === s).length; return `${by('running')} running, ${by('paused')} paused, ${all.length} total; body=${document.body.className}; html=${document.documentElement.className}; frame=${document.querySelector('.of-root')?.className}; bd=${!!document.querySelector('.backdrop')}; hidden=${document.hidden}` })
   row.mainThreadAnimations = await page.evaluate(() => {
     const ok = new Set(['transform', 'opacity', 'translate', 'rotate', 'scale', 'offset', 'computedOffset', 'easing', 'composite'])
     return [...new Set(document.getAnimations()
@@ -158,6 +162,29 @@ async function idle(page, cdp, name, { keepMouse = false } = {}) {
       }).filter(Boolean))]
   })
   if (row.mainThreadAnimations.length) console.log('    main-thread anims:', row.mainThreadAnimations.join('  '))
+  // ISOLATE=<screen>: re-trace that screen with each running animation's element frozen in turn,
+  // to find what repaints every frame.
+  if (process.env.ISOLATE === name) {
+    const targets = await page.evaluate(() => {
+      const seen = new Map()
+      document.getAnimations().filter((a) => a.playState === 'running').forEach((a, i) => {
+        const t = a.effect?.target
+        if (!t) return
+        const sel = `[data-iso="${i}"]`
+        t.setAttribute('data-iso', String(i))
+        const label = `${a.animationName || a.transitionProperty || 'anim'}@${(t.getAttribute('class') || t.tagName).split(' ')[0]}${a.effect.pseudoElement || ''}`
+        seen.set(label, (seen.get(label) || []).concat(sel + (a.effect.pseudoElement || '')))
+      })
+      return [...seen]
+    })
+    for (const [label, sels] of targets) {
+      const h = await page.addStyleTag({ content: `${sels.join(',')} { animation: none !important; transition: none !important; }` })
+      await page.waitForTimeout(300)
+      const t = await trace(cdp, 1500)
+      console.log(`    without ${label.padEnd(40)} paints/fr ${t.paintsPerFrame}  kpx/fr ${t.paintKpxPerFrame}`)
+      await h.evaluate((el) => el.remove())
+    }
+  }
   return row
 }
 
