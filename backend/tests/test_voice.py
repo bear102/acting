@@ -30,7 +30,7 @@ DEFAULT_FILM = Path(r"C:\Users\ericw\OneDrive\Desktop\UT Stuff\hackUTA 26\acting
 SENTENCES = [
     "All of us who failed your test.",
     "I haven't.",
-    "Did somebody get these beggars out of here?",
+    "Can somebody get these beggars out of here?",
     "The door's unlocked until the trial's over.",
     "The trial is over.",
 ]
