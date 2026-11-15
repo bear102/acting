@@ -202,7 +202,7 @@ async def perform(meta: str = Form(...), audio: UploadFile | None = File(None),
     try:
         await run_in_threadpool(store.save_run, run)
         rows = await run_in_threadpool(store.leaderboard, scene["id"], 500)
-        result["hall"] = reel.hall_place(rows, result["kleos"])
+        result["hall"] = reel.hall_place(rows, result["kleos"], result["team_name"])
     except Exception as e:  # noqa: BLE001
         log.warning("Could not save run: %s", e)
     # --- save the take for calibration (tools/replay_takes.py); background thread, never fails a round

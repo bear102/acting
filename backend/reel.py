@@ -181,12 +181,25 @@ def highlights(r: dict) -> str:
     return "\n".join(out)
 
 
-def hall_place(rows: list[dict], kleos: int) -> dict:
-    """Where this take sits among the scene's saved runs (this run included), and the crew just ahead."""
+def hall_place(rows: list[dict], kleos: int, team_name: str | None = None) -> dict:
+    """Where this take sits among the scene's saved runs (this run included), and the crew just ahead.
+
+    The rival is the nearest row ahead that belongs to another crew: with `team_name` given, rows whose
+    team name matches it (trimmed, case-insensitive) are your own earlier takes and never count as a rival.
+    If only your own takes are ahead, the rival is your own best, flagged `{"own": True, ...}`.
+    Without `team_name`, the rival is simply the nearest row ahead, whoever it is."""
+    def same(r: dict) -> bool:
+        return team_name is not None and (r.get("team_name") or "").strip().casefold() == team_name.strip().casefold()
+
     ahead = [r for r in rows if r.get("kleos", 0) > kleos]
     out = {"place": len(ahead) + 1, "of": max(len(rows), len(ahead) + 1), "rival": None}
-    if ahead:
-        rival = min(ahead, key=lambda r: r.get("kleos", 0))
+    others = [r for r in ahead if not same(r)]
+    if others:
+        rival = min(others, key=lambda r: r.get("kleos", 0))
         out["rival"] = {"team_name": rival.get("team_name"), "kleos": rival.get("kleos", 0),
                         "gap": rival.get("kleos", 0) - kleos}
+    elif ahead:
+        best = max(ahead, key=lambda r: r.get("kleos", 0))
+        out["rival"] = {"own": True, "team_name": best.get("team_name"), "kleos": best.get("kleos", 0),
+                        "gap": best.get("kleos", 0) - kleos}
     return out
