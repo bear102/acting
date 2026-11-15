@@ -8,7 +8,7 @@
 .app.screen-stage {
   max-width: none;
   height: calc(100dvh - 2 * var(--f, 0px));
-  padding: clamp(6px, 1.2vh, 12px) clamp(10px, 1.4vw, 20px);
+  padding: clamp(6px, 1.2vh, 12px) clamp(6px, .6vw, 10px);
   display: flex; flex-direction: column;
   overflow: hidden;
 }
@@ -17,7 +17,7 @@
   --clay: #c8673a;
   --clay-deep: #7a3418;
   --ink: #160b07;
-  --gap: clamp(8px, 1.3vw, 18px);
+  --gap: clamp(6px, .8vw, 12px);
   --ring: 9px; /* gold border + sea + bronze box-shadow rings around each frame */
   position: relative;
   flex: 1; min-height: 0;
@@ -241,7 +241,7 @@
 /* subtitles band: reserved height so the layout never jumps between lines */
 .sg-band {
   flex: none; margin-top: 0; position: relative;
-  min-height: clamp(96px, 15vh, 160px);  /* slimmer so the film gets more height */
+  min-height: clamp(80px, 12.5vh, 136px);  /* slim: the film and camera get the height */
   background: linear-gradient(180deg, rgba(58, 20, 38, .6), rgba(8, 10, 22, .92));
 }
 .sg-band .sg-prompter { padding: clamp(6px, 1.2vh, 14px) clamp(14px, 2vw, 32px); }
@@ -254,7 +254,7 @@
 
 /* player plaques: one compact row */
 .sg-plaques { flex: none; margin-top: 0; gap: clamp(6px, 1vw, 12px); flex-wrap: nowrap; }
-.sg-plaque { min-width: 0; padding: clamp(5px, 1vh, 9px) 12px; display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 4px 12px; }
+.sg-plaque { min-width: 0; padding: clamp(3px, .6vh, 6px) 12px; display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 4px 12px; }
 .sg-plaque-top { display: contents; }
 .sg-plaque-top .sg-badge { grid-column: 1; grid-row: 1 / span 2; }
 .sg-plaque-names { grid-column: 2; grid-row: 1; }
@@ -312,14 +312,16 @@ body.stage-live .bd-torch { display: none; }
    the camera cell is the picture plus its rings. Limited by the row width and by the row height
    (framed film box aspect 1.574, camera box 16:9 + rings). */
 .sg-duo .sg-cell-film, .sg-duo .sg-cell-cam {
-  --v: min(calc((100cqw - var(--gap) - 2 * var(--ring)) / 2.1876), calc(100cqh * 1.574 / 1.1876), calc((100cqh - 2 * var(--ring)) * 16 / 9));
+  --v: min(calc((100cqw - var(--gap) - 2 * var(--ring)) / 2.095), calc(100cqh * 1.5158), calc((100cqh - 2 * var(--ring)) * 16 / 9));
 }
-.sg-cell-film { container-type: inline-size; width: calc(var(--v) * 1.1876); }
+.sg-cell-film { container-type: inline-size; width: calc(var(--v) * 1.095); }
 .sg-duo .sg-cell-cam { width: var(--v); }
 .sg-film {
   gap: 0;
   border-style: solid;
-  border-width: 9.45cqw 7.85cqw 6.69cqw 7.92cqw;
+  /* painted frame at 55% of its natural thickness: picture = 91.32% of the cell (cell = 1.095 v),
+     framed box height = 0.6597 v, so the row height allows v <= 1.5158 x row height */
+  border-width: 5.2cqw 4.32cqw 3.68cqw 4.36cqw;
   border-image: url('/art/generated/stage-frame.webp') 130 108 92 109 stretch;
 }
 .sg-film .sg-film-frame { border: 0; border-radius: 0; box-shadow: none; }
