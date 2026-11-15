@@ -35,10 +35,10 @@
 .sx-islet { fill: #262a33; fill-opacity: .6; stroke: var(--gold); stroke-opacity: .22; stroke-width: 1.5; }
 .sx-route {
   fill: none; stroke: var(--gold-soft); stroke-width: 2.6; stroke-dasharray: 2 11; stroke-linecap: round;
-  opacity: .75; animation: sx-dash 3s linear infinite;
+  opacity: .75;
 }
 .sx-route.faint { opacity: .3; }
-.sx-ship { color: var(--marble); opacity: .9; animation: sx-bob 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.sx-ship { color: var(--marble); opacity: .9; transform-box: fill-box; transform-origin: center; }
 .sx-ithaca > path { fill: var(--clay-dark, #8f3f1f); stroke: var(--gold-soft); stroke-width: 1.5; }
 .sx-temple { fill: var(--gold-soft); }
 .sx-ithaca text { fill: var(--gold-soft); font: 700 12px 'Cinzel', serif; letter-spacing: .22em; }

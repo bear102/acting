@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PLAYER_COLORS } from '../vision.js'
+import { PLAYER_COLORS } from '../playerColors.js'
 import { MaskArt } from './setup/icons.jsx'
 import './setup/crew-setup.css'
 

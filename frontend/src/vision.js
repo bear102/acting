@@ -11,7 +11,7 @@ export const BLENDSHAPES = [
   'mouthPressLeft', 'mouthPressRight', 'noseSneerLeft', 'noseSneerRight', 'cheekSquintLeft',
   'cheekSquintRight',
 ]
-export const PLAYER_COLORS = ['#e8b84a', '#5ec8d8', '#e0644a', '#9be07a']
+export { PLAYER_COLORS } from './playerColors.js'
 
 export { PlayerTracker } from './stage/tracker.js'
 
